@@ -29,6 +29,8 @@ npm run dev
 
 The M-Pesa wallet is denominated in whole Kenyan shillings and is separate from simulated USD/USDT practice balances. Copy `.env.example` to an ignored local `.env` for development, or set the same variables as **server-side secrets** in the production host. Never set a secret under a `VITE_` name. `SUPABASE_SECRET_ROLE_KEY`, `ADMIN_SETUP_PASSWORD`, and `CRON_SECRET` are mapped server-side to the names expected by the generated integrations. Do not set `VITE_SUPABASE_SECRET_ROLE_KEY`.
 
-Apply `drizzle/migrations/0004_mpesa_wallet.sql` to the target Supabase database using the Supabase SQL Editor, or use `npx drizzle-kit migrate` with `LOVABLE_DB_MIGRATION_URL` set to a direct PostgreSQL connection string. The migration adds the private KES wallet and payment ledger, RLS read policies, and atomic balance settlement functions.
+The Supabase CLI migration files live in `supabase/migrations/` and include the core profile/practice tables, staff/admin tables, signup/referral functions, and M-Pesa wallet/ledger. Link the CLI to the project and apply them with `npx supabase link --project-ref ifgvocgcwmdsnqgvvvsw` followed by `npx supabase db push`. These files are the Supabase CLI path; do not also apply the duplicate Drizzle SQL migrations.
+
+This migration history is for a new/empty Supabase database. If the target project already has these tables, do not push the full history blindly; its migration history must first be baselined to match the schema that is already there.
 
 Configure the Daraja callback URLs to the exact public HTTPS URLs in `.env.example`. Use `DARAJA_ENV=production` only with Safaricom-approved production credentials and an approved shortcode; use `sandbox` for local verification.
