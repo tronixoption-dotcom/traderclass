@@ -37,7 +37,8 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
     return () => clearInterval(timer);
   }, [data, mpesa, refresh]);
 
-  const availableMethods = (data?.methods ?? []).filter((method) => mode === 'deposit' ? method.deposits_enabled : method.withdrawals_enabled);
+  const allMethods = data?.methods ?? [];
+  const availableMethods = allMethods.filter((method) => mode === 'deposit' ? method.deposits_enabled : method.withdrawals_enabled);
   const selected = useMemo(() => availableMethods.find((method) => method.id === methodId) ?? null, [availableMethods, methodId]);
   const currency = selected?.asset ?? 'KES';
   const walletBalance = (asset: string) => asset === 'KES'
@@ -81,13 +82,13 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
     <div className="mx-auto grid size-20 place-items-center rounded-2xl bg-emerald-600 text-white"><WalletCards className="size-10"/></div><div><h2 className="text-xl font-bold">Activate your account</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">To activate your account and access withdrawals, make at least one successful deposit. Choose a deposit method to get started.</p></div><Link to="/deposit" className="inline-flex h-14 w-full items-center justify-center rounded-full bg-primary px-5 text-base font-bold text-primary-foreground">Activate Account</Link>
   </section></div>;
 
-  const selectable = [{ id: 'mpesa', name: 'M-Pesa', asset: 'KES', network: '', deposit_address: '', instructions: 'Pay securely using an M-Pesa prompt sent to your phone.', min_amount: 1, max_amount: 150000, provider: 'manual' }, ...availableMethods];
+  const selectable = [{ id: 'mpesa', name: 'M-Pesa', asset: 'KES', network: '', deposit_address: '', instructions: 'Pay securely using an M-Pesa prompt sent to your phone.', min_amount: 1, max_amount: 150000, provider: 'manual', enabled: true }, ...allMethods.map((method) => ({ ...method, enabled: mode === 'deposit' ? method.deposits_enabled : method.withdrawals_enabled }))];
   const current = methodId === 'mpesa' ? selectable[0] : selected;
   const configured = methodId === 'mpesa' || !!selected;
 
   return <div className="pb-6"><PageHeader title={mode === 'deposit' ? 'Deposit' : 'Withdraw'} compact/><section className="mx-4 mt-4 space-y-5 rounded-2xl border border-border bg-card p-4 sm:p-6">
-    <div><h2 className="text-lg font-bold">{mode === 'deposit' ? 'Choose a deposit method' : 'Choose a withdrawal method'}</h2><p className="mt-1 text-sm text-muted-foreground">{mode === 'deposit' ? 'Select how you want to add funds to your account.' : 'Choose where you want your funds sent.'}</p></div>
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{selectable.map((method) => <button key={method.id} type="button" onClick={() => { setMethodId(method.id); setAmount(method.asset === 'KES' ? '1000' : '50'); setContact(''); }} className={`min-h-[72px] rounded-xl border p-3 text-left transition ${methodId===method.id?'border-2 border-primary bg-primary/10':'border-border hover:bg-muted/60'}`}><span className="block text-sm font-semibold">{method.name}</span><span className="mt-1 block text-xs text-muted-foreground">{method.asset}{method.network ? ` · ${method.network}` : ''}</span></button>)}</div>
+    <div><h2 className="text-lg font-bold">Payment method</h2><p className="mt-1 text-sm text-muted-foreground">{mode === 'deposit' ? 'Choose how you want to pay.' : 'Choose where to receive your payout.'}</p></div>
+    <div className="space-y-3">{selectable.map((method) => { const active = methodId===method.id; return <button key={method.id} type="button" disabled={!method.enabled} onClick={() => { setMethodId(method.id); setAmount(method.asset === 'KES' ? (mode==='deposit'?'1000':'500') : '50'); setContact(''); }} className={`flex min-h-[72px] w-full items-center gap-3 rounded-full border px-4 text-left transition ${active?'border-2 border-primary bg-primary/10':'border-border'} ${method.enabled?'hover:bg-muted/60':'cursor-not-allowed opacity-55'}`}><PlatformMark name={method.name}/><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{method.name}</span><span className="mt-1 block text-xs text-muted-foreground">{method.enabled?`${method.asset}${method.network?` · ${method.network}`:''}`:'Admin setup required'}</span></span><ArrowRight className="size-5 shrink-0 text-muted-foreground"/></button>; })}</div>
     {mode === 'withdraw' && <div className="rounded-xl bg-muted/50 p-3 text-sm"><span className="text-muted-foreground">Available balance</span><span className="float-right font-bold">{money(walletBalance(currency), currency)}</span></div>}
     {selected && mode === 'deposit' && <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4"><p className="text-sm font-semibold">Send {selected.asset} using {selected.name}{selected.network ? ` · ${selected.network}` : ''}</p><p className="text-xs leading-5 text-muted-foreground">{selected.instructions || 'Send only the selected asset on the network shown.'}</p><div className="break-all rounded-lg border border-border bg-background p-3 font-mono text-sm">{selected.deposit_address}</div><Button variant="outline" size="sm" onClick={() => { void navigator.clipboard.writeText(selected.deposit_address); toast.success('Wallet address copied'); }}><Copy className="mr-2 size-4"/>Copy address</Button><p className="text-xs text-muted-foreground">After sending, enter the transaction hash below. Admin review is required before funds are credited.</p></div>}
     {methodId === 'mpesa' && <div className="rounded-xl bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">KES deposits and withdrawals use M-Pesa. The payment prompt or payout is confirmed through Safaricom.</div>}
@@ -98,4 +99,15 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
     <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground"><Clock3 className="size-3.5"/>{mode==='deposit'&&methodId!=='mpesa'?'Crypto deposits are credited after an admin confirms the transaction on-chain.':mode==='withdraw'&&methodId!=='mpesa'?'The selected amount is reserved while an admin processes the payout.':'Your balance updates when the M-Pesa transaction is confirmed.'}</p>
     <p className="text-center text-[11px] leading-5 text-muted-foreground">Wallet deposits and withdrawals are separate from simulated practice trading balances and trade execution.</p>
   </section></div>;
+}
+
+function PlatformMark({ name }: { name: string }) {
+  const key = name.toLowerCase();
+  const style = key.includes('mpesa') || key.includes('m-pesa') ? 'bg-emerald-600 text-white'
+    : key.includes('binance') ? 'bg-amber-400 text-white'
+    : key.includes('bybit') ? 'bg-zinc-950 text-white'
+    : key.includes('okx') ? 'bg-black text-white'
+    : 'bg-primary text-primary-foreground';
+  const mark = key.includes('mpesa') || key.includes('m-pesa') ? 'M' : key.includes('binance') ? 'B' : key.includes('bybit') ? 'BY' : key.includes('okx') ? 'OKX' : name.slice(0, 2).toUpperCase();
+  return <span aria-hidden className={`grid size-11 shrink-0 place-items-center rounded-full text-xs font-extrabold ${style}`}>{mark}</span>;
 }

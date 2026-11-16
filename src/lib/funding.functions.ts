@@ -10,10 +10,11 @@ const methodInput = z.object({
   min_amount: z.number().positive().max(1_000_000), max_amount: z.number().positive().max(1_000_000),
   deposits_enabled: z.boolean(), withdrawals_enabled: z.boolean(), sort_order: z.number().int().min(0).max(9999),
 }).refine((value) => value.max_amount >= value.min_amount, 'Maximum must be at least the minimum');
+const configuredMethodInput = methodInput.refine((value) => !value.deposits_enabled || !value.deposit_address.toUpperCase().startsWith('UNCONFIGURED-'), 'Set the real receiving wallet address before enabling deposits');
 
 export const loadFunding = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const [methods, wallets, transactions, deposits] = await Promise.all([
-    context.supabase.from('funding_methods').select('*').or('deposits_enabled.eq.true,withdrawals_enabled.eq.true').order('sort_order'),
+    context.supabase.from('funding_methods').select('*').order('sort_order'),
     context.supabase.from('funding_wallets').select('asset,balance').eq('user_id', context.userId),
     context.supabase.from('funding_transactions').select('*').eq('user_id', context.userId).order('created_at', { ascending: false }).limit(50),
     context.supabase.from('funding_transactions').select('id', { count: 'exact', head: true }).eq('user_id', context.userId).eq('kind', 'deposit').eq('status', 'completed'),
@@ -46,11 +47,11 @@ export const getFundingAdmin = createServerFn({ method: 'POST' }).middleware([re
   return { methods: methods.data ?? [], transactions: transactions.data ?? [], profiles: profiles.data ?? [] };
 });
 
-export const saveFundingMethod = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => methodInput.parse(value)).handler(async ({ data, context }) => {
+export const saveFundingMethod = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => configuredMethodInput.parse(value)).handler(async ({ data, context }) => {
   await requireStaff(context.supabase, context.userId, context.claims, true);
   const row = { ...data, provider: 'crypto', updated_at: new Date().toISOString() };
   const { error } = await context.supabase.from('funding_methods').upsert(row, { onConflict: 'id' });
-  if (error) throw new Error('Could not save payment method');
+  if (error) throw new Error(error.message || 'Could not save payment method');
   await context.supabase.from('admin_audit').insert({ actor_id: context.userId, action: `Saved deposit method ${data.name}` });
   return { ok: true };
 });
