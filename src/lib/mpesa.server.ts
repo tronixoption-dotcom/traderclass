@@ -17,6 +17,13 @@ function database(): Db {
   return createClient<any>(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
+async function requirePaymentsEnabled(db: Db, payment: 'deposit' | 'withdrawal') {
+  const column = payment === 'deposit' ? 'deposits_enabled' : 'withdrawals_enabled';
+  const { data, error } = await db.from('site_settings').select(column).eq('id', true).maybeSingle();
+  if (error || !data) throw new Error('M-Pesa payment settings are unavailable');
+  if (!data[column]) throw new Error(`M-Pesa ${payment}s are currently paused`);
+}
+
 function darajaBase() {
   const env = required('DARAJA_ENV').toLowerCase();
   if (env !== 'production' && env !== 'sandbox') throw new Error('DARAJA_ENV must be production or sandbox');
@@ -78,6 +85,7 @@ export async function startStkDeposit(userId: string, rawAmount: number, rawPhon
   const callback = callbackUrl('DARAJA_CALLBACK_URL');
   const bearer = await token();
   const db = database();
+  await requirePaymentsEnabled(db, 'deposit');
   const { count, error: countError } = await db.from('mpesa_transactions').select('id', { count: 'exact', head: true })
     .eq('user_id', userId).eq('kind', 'deposit').eq('status', 'pending').gte('created_at', new Date(Date.now() - 5 * 60_000).toISOString());
   if (countError) throw new Error('Could not check recent payment requests');
@@ -117,6 +125,7 @@ export async function startB2cWithdrawal(userId: string, rawAmount: number, rawP
   const resultUrl = callbackUrl('DARAJA_B2C_RESULT_URL');
   const bearer = await token();
   const db = database();
+  await requirePaymentsEnabled(db, 'withdrawal');
   const { count, error: countError } = await db.from('mpesa_transactions').select('id', { count: 'exact', head: true })
     .eq('user_id', userId).eq('kind', 'withdrawal').eq('status', 'processing');
   if (countError) throw new Error('Could not check pending withdrawals');

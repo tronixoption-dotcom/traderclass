@@ -63,8 +63,8 @@ const UserOutline = () => (
 );
 
 const links = [
-  { to: "/deposit", label: "Practice deposit", icon: <ArrowDownToLine className={ic} strokeWidth={2.2} /> },
-  { to: "/withdraw", label: "Practice withdrawal", icon: <ArrowUpFromLine className={ic} strokeWidth={2.2} /> },
+  { to: "/deposit", label: "M-Pesa deposit", icon: <ArrowDownToLine className={ic} strokeWidth={2.2} /> },
+  { to: "/withdraw", label: "M-Pesa withdrawal", icon: <ArrowUpFromLine className={ic} strokeWidth={2.2} /> },
   { to: "/transfer", label: "Transfer", icon: <ArrowLeftRight className={ic} strokeWidth={2.2} /> },
   { to: "/transactions", label: "Transactions", icon: <List className={ic} strokeWidth={2.2} /> },
   { to: "/referral", label: "Referral program", icon: <GiftFill /> },

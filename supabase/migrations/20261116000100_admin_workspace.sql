@@ -23,7 +23,9 @@ ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public reads safe settings" ON public.site_settings FOR SELECT TO anon,authenticated USING(true);
 CREATE POLICY "Admins create settings" ON public.site_settings FOR INSERT TO authenticated WITH CHECK(public.has_role(auth.uid(),'admin'));
 CREATE POLICY "Admins update settings" ON public.site_settings FOR UPDATE TO authenticated USING(public.has_role(auth.uid(),'admin')) WITH CHECK(public.has_role(auth.uid(),'admin'));
+INSERT INTO public.site_settings (id) VALUES (true) ON CONFLICT (id) DO NOTHING;
 CREATE TABLE public.support_tickets (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE, subject text NOT NULL, message text NOT NULL, reply text NOT NULL DEFAULT '', status text NOT NULL DEFAULT 'open' CHECK(status IN ('open','resolved')), created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX support_tickets_user_created_idx ON public.support_tickets(user_id, created_at DESC);
 GRANT SELECT,INSERT,UPDATE ON public.support_tickets TO authenticated;
 GRANT ALL ON public.support_tickets TO service_role;
 ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
@@ -31,6 +33,7 @@ CREATE POLICY "Owner and support read tickets" ON public.support_tickets FOR SEL
 CREATE POLICY "Users create own tickets" ON public.support_tickets FOR INSERT TO authenticated WITH CHECK(user_id=auth.uid() AND status='open' AND reply='');
 CREATE POLICY "Support responds" ON public.support_tickets FOR UPDATE TO authenticated USING(public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'support')) WITH CHECK(public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'support'));
 CREATE TABLE public.admin_audit (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), actor_id uuid NOT NULL REFERENCES auth.users(id), action text NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX admin_audit_created_at_idx ON public.admin_audit(created_at DESC);
 GRANT SELECT,INSERT ON public.admin_audit TO authenticated;
 GRANT ALL ON public.admin_audit TO service_role;
 ALTER TABLE public.admin_audit ENABLE ROW LEVEL SECURITY;

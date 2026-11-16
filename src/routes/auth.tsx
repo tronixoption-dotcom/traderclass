@@ -33,7 +33,7 @@ export const Route = createFileRoute("/auth")({
       ...(redirect ? { redirect } : {}),
     };
   },
-  head: () => ({ meta: [{ title: "Sign in or create an account · Gold Grove Markets" }, { name: "description", content: "Access your private Gold Grove Markets practice workspace." }] }),
+  head: () => ({ meta: [{ title: "Sign in or create an account · Tradeclass" }, { name: "description", content: "Access your private Tradeclass practice workspace." }] }),
   component: AuthPage,
 });
 
@@ -52,7 +52,7 @@ const signUpSchema = z.object({
 });
 
 function Brand() {
-  return <Link to="/" className="flex items-center gap-2.5" aria-label="Gold Grove Markets home"><span className="grid size-9 place-items-center rounded-xl bg-[#eab84e] text-[#111b2c]"><span className="text-lg font-black">G</span></span><span className="text-[15px] font-extrabold text-white">Gold Grove <span className="text-[#eab84e]">Markets</span></span></Link>;
+  return <Link to="/" className="flex items-center gap-2.5" aria-label="Tradeclass home"><span className="grid size-9 place-items-center rounded-xl bg-[#eab84e] text-[#111b2c]"><span className="text-lg font-black">T</span></span><span className="text-[15px] font-extrabold text-white">Trade<span className="text-[#eab84e]">class</span></span></Link>;
 }
 
 function AuthPage() {
@@ -140,7 +140,7 @@ function AuthPage() {
             <button disabled={busy} className="mt-1 inline-flex h-[49px] w-full items-center justify-center gap-2 rounded-xl bg-[#eab84e] text-sm font-extrabold text-[#101a2a] transition hover:bg-[#f1c96f] disabled:cursor-wait disabled:opacity-60">{busy ? "Please wait…" : mode === "in" ? "Sign in" : "Create account"}<ArrowRight className="size-4"/></button>
           </form>}
 
-          <p className="mt-5 text-center text-[11px] text-slate-500">{mode === "up" ? "Already have an account?" : "New to Gold Grove Markets?"} <button type="button" onClick={() => { setMode(mode === "up" ? "in" : "up"); setSent(false); }} className="font-bold text-white hover:text-[#edbd58]">{mode === "up" ? "Sign in" : "Create an account"}</button></p>
+          <p className="mt-5 text-center text-[11px] text-slate-500">{mode === "up" ? "Already have an account?" : "New to Tradeclass?"} <button type="button" onClick={() => { setMode(mode === "up" ? "in" : "up"); setSent(false); }} className="font-bold text-white hover:text-[#edbd58]">{mode === "up" ? "Sign in" : "Create an account"}</button></p>
           <p className="mt-5 flex items-center justify-center gap-1.5 text-[10px] text-slate-600"><LockKeyhole className="size-3"/> Your credentials are handled securely. Practice balances are simulated.</p>
         </section>
       </div>

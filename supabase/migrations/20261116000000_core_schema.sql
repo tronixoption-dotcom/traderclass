@@ -9,6 +9,7 @@ CREATE TABLE public.profiles (
 );
 
 CREATE INDEX profiles_referred_by_idx ON public.profiles(referred_by);
+CREATE INDEX profiles_created_at_idx ON public.profiles(created_at DESC);
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 GRANT SELECT ON public.profiles TO authenticated;
 GRANT UPDATE (username) ON public.profiles TO authenticated;

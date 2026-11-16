@@ -3,9 +3,9 @@ import { ArrowDownRight, ArrowRight, ArrowUpRight, Bot, ChartNoAxesCombined, Shi
 
 function Brand() {
   return (
-    <Link to="/" className="flex items-center gap-2.5" aria-label="Gold Grove home">
+    <Link to="/" className="flex items-center gap-2.5" aria-label="Tradeclass home">
       <span className="grid size-9 place-items-center rounded-xl bg-[#eab84e] text-[#111b2c]"><ChartNoAxesCombined className="size-5" strokeWidth={2.5} /></span>
-      <span className="text-[17px] font-extrabold tracking-tight text-white">Gold Grove<span className="text-[#eab84e]"> Markets</span></span>
+      <span className="text-[17px] font-extrabold tracking-tight text-white">Trade<span className="text-[#eab84e]">class</span></span>
     </Link>
   );
 }
@@ -92,7 +92,7 @@ export function LandingPage() {
 
         <section id="tools" className="bg-[#f4f6f8] py-20 text-[#152237] sm:py-24">
           <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
-            <div className="max-w-2xl"><p className="text-xs font-extrabold uppercase tracking-[.2em] text-[#a67d25]">Built for your routine</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Everything you need to practice with purpose.</h2><p className="mt-4 max-w-xl leading-7 text-slate-600">Keep your attention on the market. Gold Grove brings your chart, practice tools and account activity into one calm workspace.</p></div>
+            <div className="max-w-2xl"><p className="text-xs font-extrabold uppercase tracking-[.2em] text-[#a67d25]">Built for your routine</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Everything you need to practice with purpose.</h2><p className="mt-4 max-w-xl leading-7 text-slate-600">Keep your attention on the market. Tradeclass brings your chart, practice tools and account activity into one calm workspace.</p></div>
             <div className="mt-10 grid gap-4 md:grid-cols-3">{features.map(({ icon: Icon, title, text }) => <article key={title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgba(15,32,53,.04)]"><span className="grid size-11 place-items-center rounded-xl bg-[#f7edda] text-[#a67d25]"><Icon className="size-5"/></span><h3 className="mt-5 text-lg font-bold">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p></article>)}</div>
           </div>
         </section>
@@ -105,7 +105,7 @@ export function LandingPage() {
         </section>
       </main>
       <footer className="border-t border-white/[.08] bg-[#071225]">
-        <div className="mx-auto flex max-w-[1240px] flex-col gap-4 px-5 py-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-8"><Brand/><span>Gold Grove Markets · Practice trading with simulated funds.</span><Link to="/auth" search={{ mode: "in" }} className="font-semibold text-slate-300 hover:text-white">Client sign in</Link></div>
+        <div className="mx-auto flex max-w-[1240px] flex-col gap-4 px-5 py-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-8"><Brand/><span>Tradeclass · Practice trading with simulated funds.</span><Link to="/auth" search={{ mode: "in" }} className="font-semibold text-slate-300 hover:text-white">Client sign in</Link></div>
       </footer>
     </div>
   );

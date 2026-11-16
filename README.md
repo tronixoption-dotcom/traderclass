@@ -29,7 +29,9 @@ npm run dev
 
 The M-Pesa wallet is denominated in whole Kenyan shillings and is separate from simulated USD/USDT practice balances. Copy `.env.example` to an ignored local `.env` for development, or set the same variables as **server-side secrets** in the production host. Never set a secret under a `VITE_` name. `SUPABASE_SECRET_ROLE_KEY`, `ADMIN_SETUP_PASSWORD`, and `CRON_SECRET` are mapped server-side to the names expected by the generated integrations. Do not set `VITE_SUPABASE_SECRET_ROLE_KEY`.
 
-The Supabase CLI migration files live in `supabase/migrations/` and include the core profile/practice tables, staff/admin tables, signup/referral functions, and M-Pesa wallet/ledger. Link the CLI to the project and apply them with `npx supabase link --project-ref ifgvocgcwmdsnqgvvvsw` followed by `npx supabase db push`. These files are the Supabase CLI path; do not also apply the duplicate Drizzle SQL migrations.
+The Supabase CLI migration files live in `supabase/migrations/` and include every app table: `profiles`, `practice_accounts`, `user_roles`, `staff_invitations`, `site_settings`, `support_tickets`, `admin_audit`, `admin_session_unlocks`, `mpesa_wallets`, and `mpesa_transactions`. Signup country and mobile are stored in Supabase Auth user metadata. The migrations also create the signup/referral, role-management, and M-Pesa settlement functions and RLS policies. Link the CLI to the project and apply them with `npx supabase link --project-ref ifgvocgcwmdsnqgvvvsw` followed by `npx supabase db push`. These files are the Supabase CLI path; do not also apply the duplicate Drizzle SQL migrations.
+
+After the first user signs up and verifies their email, replace the example address in `supabase/bootstrap_admin.sql` and run that script once in the Supabase SQL Editor to grant the initial administrator role. The `ADMIN_SETUP_PASSWORD` environment variable alone does not grant database staff permissions.
 
 This migration history is for a new/empty Supabase database. If the target project already has these tables, do not push the full history blindly; its migration history must first be baselined to match the schema that is already there.
 
