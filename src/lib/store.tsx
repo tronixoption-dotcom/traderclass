@@ -96,6 +96,7 @@ type Ctx = {
   topUp: (account: AccountId, amount: number) => string | null;
   withdraw: (account: AccountId, amount: number) => string | null;
   user: AuthUser | null;
+  authReady: boolean;
   profile: Profile | null;
   /** True once the signed-in user's saved account has been loaded. */
   synced: boolean;
@@ -130,6 +131,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(freshState);
   const [hydrated, setHydrated] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [synced, setSynced] = useState(false);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
@@ -268,8 +270,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setProfile(null);
         setSynced(false);
+        setAuthReady(true);
         return;
       }
+      setAuthReady(false);
       setUser({ id: u.id, email: u.email ?? null });
       const [{ data: prof }, { data: row }] = await Promise.all([
         supabase.from("profiles").select("username, referral_code").eq("id", u.id).maybeSingle(),
@@ -284,19 +288,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         commit(start);
         await supabase.from("practice_accounts").insert({ user_id: u.id, state: start as unknown as Json });
       }
-      if (active) setSynced(true);
+      if (active) {
+        setSynced(true);
+        setAuthReady(true);
+      }
     };
-    supabase.auth.getUser().then(({ data }) => load(data.user));
+    supabase.auth.getUser().then(({ data }) => load(data.user)).catch(() => {
+      if (active) {
+        setUser(null);
+        setProfile(null);
+        setSynced(false);
+        setAuthReady(true);
+      }
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
         setUser(null);
         setProfile(null);
         setSynced(false);
+        setAuthReady(true);
         localStorage.removeItem(KEY);
         commit({ ...freshState(), theme: ref.current.theme });
         return;
       }
       if (event === "SIGNED_IN" && session?.user && session.user.id !== userIdRef.current) {
+        setAuthReady(false);
         setTimeout(() => load(session.user), 0);
       }
     });
@@ -352,6 +368,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return null;
       },
       user,
+      authReady,
       profile,
       synced,
       signOut: async () => {
@@ -390,7 +407,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       reset: () => commit({ ...freshState(), theme: ref.current.theme }),
     }),
-    [state, siteSettings, hydrated, placeTrade, commit, user, profile, synced],
+    [state, siteSettings, hydrated, placeTrade, commit, user, authReady, profile, synced],
   );
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;

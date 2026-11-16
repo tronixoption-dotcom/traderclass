@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
+  useNavigate,
   createRootRouteWithContext,
   useRouter,
   useRouterState,
@@ -20,6 +21,8 @@ import { SideRail } from "@/components/app/SideRail";
 import { useIsDesktop } from "@/hooks/use-desktop";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteAnnouncement } from "@/components/admin/SiteAnnouncement";
+import { LandingPage } from "@/components/marketing/LandingPage";
+import { useStore } from "@/lib/store";
 
 function NotFoundComponent() {
   return (
@@ -127,12 +130,41 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const desktop = useIsDesktop();
-
   return (
     <QueryClientProvider client={queryClient}>
       <StoreProvider>
+        <RootFrame />
+      </StoreProvider>
+    </QueryClientProvider>
+  );
+}
+
+function RootFrame() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const desktop = useIsDesktop();
+  const navigate = useNavigate();
+  const { user, authReady } = useStore();
+  const publicRoute = pathname === "/" || pathname === "/auth";
+
+  useEffect(() => {
+    if (authReady && !user && !publicRoute) {
+      navigate({ to: "/auth", search: { redirect: pathname } });
+    }
+  }, [authReady, user, publicRoute, pathname, navigate]);
+
+  if (pathname === "/auth") {
+    return <><Outlet /><Toaster position="top-center" richColors closeButton /></>;
+  }
+  if (pathname === "/" && (!authReady || !user)) {
+    return <><LandingPage /><Toaster position="top-center" richColors closeButton /></>;
+  }
+  if (!authReady) {
+    return <div className="grid h-dvh place-items-center bg-background text-sm text-muted-foreground">Loading your secure workspace…</div>;
+  }
+  if (!user) return null;
+
+  return (
+    <>
         {pathname === "/admin" ? <Outlet /> : desktop ? (
           <div className="flex h-dvh w-full overflow-hidden bg-background">
             <SideRail pathname={pathname} />
@@ -159,7 +191,6 @@ function RootComponent() {
         )}
         {pathname !== '/admin' && <SiteAnnouncement />}
         <Toaster position="top-center" richColors closeButton />
-      </StoreProvider>
-    </QueryClientProvider>
+    </>
   );
 }

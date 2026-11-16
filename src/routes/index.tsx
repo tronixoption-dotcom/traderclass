@@ -4,10 +4,10 @@ import { MarketView } from "@/components/app/MarketView";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Market — Goldmarket Practice Trading" },
-      { name: "description", content: "Live practice chart for gold, forex and crypto. Place Buy or Sell trades with virtual money." },
-      { property: "og:title", content: "Market — Goldmarket Practice Trading" },
-      { property: "og:description", content: "Live practice chart for gold, forex and crypto with virtual money." },
+      { title: "Gold Grove Markets | A clearer way to practice" },
+      { name: "description", content: "Explore gold, forex and crypto in a focused practice trading workspace with simulated funds." },
+      { property: "og:title", content: "Gold Grove Markets | A clearer way to practice" },
+      { property: "og:description", content: "A focused market workspace to explore, practice and build better routines." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
