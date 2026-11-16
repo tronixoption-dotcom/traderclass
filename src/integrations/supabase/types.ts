@@ -119,29 +119,35 @@ export type Database = {
       site_settings: {
         Row: {
           announcement: string
+          deposit_fee_percent: number
           deposits_enabled: boolean
           id: boolean
           robot_enabled: boolean
           trading_enabled: boolean
           updated_at: string
+          withdrawal_fee_percent: number
           withdrawals_enabled: boolean
         }
         Insert: {
           announcement?: string
+          deposit_fee_percent?: number
           deposits_enabled?: boolean
           id?: boolean
           robot_enabled?: boolean
           trading_enabled?: boolean
           updated_at?: string
+          withdrawal_fee_percent?: number
           withdrawals_enabled?: boolean
         }
         Update: {
           announcement?: string
+          deposit_fee_percent?: number
           deposits_enabled?: boolean
           id?: boolean
           robot_enabled?: boolean
           trading_enabled?: boolean
           updated_at?: string
+          withdrawal_fee_percent?: number
           withdrawals_enabled?: boolean
         }
         Relationships: []

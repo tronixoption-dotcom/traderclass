@@ -13,14 +13,15 @@ const methodInput = z.object({
 const configuredMethodInput = methodInput.refine((value) => !value.deposits_enabled || !value.deposit_address.toUpperCase().startsWith('UNCONFIGURED-'), 'Set the real receiving wallet address before enabling deposits');
 
 export const loadFunding = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
-  const [methods, wallets, transactions, deposits] = await Promise.all([
+  const [methods, wallets, transactions, deposits, settings] = await Promise.all([
     context.supabase.from('funding_methods').select('*').order('sort_order'),
     context.supabase.from('funding_wallets').select('asset,balance').eq('user_id', context.userId),
     context.supabase.from('funding_transactions').select('*').eq('user_id', context.userId).order('created_at', { ascending: false }).limit(50),
     context.supabase.from('funding_transactions').select('id', { count: 'exact', head: true }).eq('user_id', context.userId).eq('kind', 'deposit').eq('status', 'completed'),
+    context.supabase.from('site_settings').select('deposit_fee_percent,withdrawal_fee_percent').eq('id', true).maybeSingle(),
   ]);
-  if (methods.error || wallets.error || transactions.error || deposits.error) throw new Error('Could not load funding options');
-  return { methods: methods.data ?? [], wallets: wallets.data ?? [], transactions: transactions.data ?? [], isActivated: (deposits.count ?? 0)>0 };
+  if (methods.error || wallets.error || transactions.error || deposits.error || settings.error) throw new Error('Could not load funding options');
+  return { methods: methods.data ?? [], wallets: wallets.data ?? [], transactions: transactions.data ?? [], isActivated: (deposits.count ?? 0)>0, depositFeePercent: Number(settings.data?.deposit_fee_percent ?? 0), withdrawalFeePercent: Number(settings.data?.withdrawal_fee_percent ?? 0) };
 });
 
 const cryptoAmount = z.number().positive().max(1_000_000).refine((amount) => Number.isInteger(amount * 100_000_000), 'Amount supports up to 8 decimal places');

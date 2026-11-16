@@ -86,12 +86,17 @@ export async function startStkDeposit(userId: string, rawAmount: number, rawPhon
   const bearer = await token();
   const db = database();
   await requirePaymentsEnabled(db, 'deposit');
+  const { data: paymentSettings, error: settingsError } = await db.from('site_settings').select('deposit_fee_percent').eq('id', true).single();
+  if (settingsError || !paymentSettings) throw new Error('Could not load deposit fee settings');
+  const feeKes = Math.round(kes * Number(paymentSettings.deposit_fee_percent ?? 0) / 100);
+  const netKes = kes - feeKes;
+  if (netKes < 1) throw new Error('Deposit amount must be greater than its fee');
   const { count, error: countError } = await db.from('mpesa_transactions').select('id', { count: 'exact', head: true })
     .eq('user_id', userId).eq('kind', 'deposit').eq('status', 'pending').gte('created_at', new Date(Date.now() - 5 * 60_000).toISOString());
   if (countError) throw new Error('Could not check recent payment requests');
   if ((count ?? 0) >= 3) throw new Error('Please wait for your pending M-Pesa requests to finish');
 
-  const { data: tx, error } = await db.from('mpesa_transactions').insert({ user_id: userId, kind: 'deposit', status: 'pending', amount_kes: kes, phone_number: phone }).select('id').single();
+  const { data: tx, error } = await db.from('mpesa_transactions').insert({ user_id: userId, kind: 'deposit', status: 'pending', amount_kes: kes, fee_amount_kes: feeKes, net_amount_kes: netKes, phone_number: phone }).select('id').single();
   if (error || !tx) throw new Error('Could not create the deposit request');
   try {
     const timestamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
@@ -138,11 +143,16 @@ export async function startB2cWithdrawal(userId: string, rawAmount: number, rawP
   if ((count ?? 0) >= 2) throw new Error('Please wait for pending withdrawals to finish');
   const { data: txId, error } = await db.rpc('request_mpesa_withdrawal', { p_user_id: userId, p_amount_kes: kes, p_phone_number: phone });
   if (error || typeof txId !== 'string') throw new Error(error?.message.includes('Insufficient') ? 'Insufficient KES wallet balance' : 'Could not create the withdrawal request');
+  const { data: payout, error: payoutError } = await db.from('mpesa_transactions').select('net_amount_kes').eq('id', txId).single();
+  if (payoutError || !payout) {
+    await db.rpc('finish_mpesa_transaction', { p_transaction_id: txId, p_success: false, p_result_code: 'PAYOUT_AMOUNT_READ_FAILED', p_description: 'Could not read the payout amount; reserved funds were returned.' });
+    throw new Error('Could not load the payout amount; the reserved balance was returned');
+  }
   try {
     const result = await darajaPost('/mpesa/b2c/v1/paymentrequest', {
       InitiatorName: initiator,
       SecurityCredential: credential,
-      CommandID: 'BusinessPayment', Amount: kes,
+      CommandID: 'BusinessPayment', Amount: Number(payout.net_amount_kes),
       PartyA: shortcode, PartyB: phone,
       Remarks: 'Tradeclass wallet withdrawal',
       QueueTimeOutURL: queueUrl,
@@ -167,7 +177,7 @@ export async function getWallet(userId: string) {
   const db = database();
   const [wallet, transactions, deposits] = await Promise.all([
     db.from('mpesa_wallets').select('balance_kes').eq('user_id', userId).maybeSingle(),
-    db.from('mpesa_transactions').select('id,kind,status,amount_kes,phone_number,mpesa_receipt_number,created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
+    db.from('mpesa_transactions').select('id,kind,status,amount_kes,fee_amount_kes,net_amount_kes,phone_number,mpesa_receipt_number,created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
     db.from('mpesa_transactions').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('kind', 'deposit').eq('status', 'completed'),
   ]);
   if (wallet.error || transactions.error || deposits.error) throw new Error('Could not load the M-Pesa wallet');
@@ -218,12 +228,12 @@ export async function b2cResultCallback(request: Request) {
   const result = payload?.Result;
   if (!result || typeof result.OriginatorConversationID !== 'string' || !Number.isInteger(result.ResultCode)) return json({ error: 'Invalid callback' }, 400);
   const db = database();
-  const { data: tx, error } = await db.from('mpesa_transactions').select('id,amount_kes').eq('originator_conversation_id', result.OriginatorConversationID).eq('kind', 'withdrawal').maybeSingle();
+  const { data: tx, error } = await db.from('mpesa_transactions').select('id,net_amount_kes').eq('originator_conversation_id', result.OriginatorConversationID).eq('kind', 'withdrawal').maybeSingle();
   if (error) return json({ error: 'Database unavailable' }, 503);
   if (!tx) return callbackAck();
   const items = result.ResultParameters?.ResultParameter ?? [];
   const sentAmount = items.find((item: any) => item.Key === 'TransactionAmount')?.Value;
-  if (result.ResultCode === 0 && Number(sentAmount) !== Number(tx.amount_kes)) return json({ error: 'Callback amount mismatch' }, 400);
+  if (result.ResultCode === 0 && Number(sentAmount) !== Number(tx.net_amount_kes)) return json({ error: 'Callback amount mismatch' }, 400);
   const receipt = items.find((item: any) => item.Key === 'TransactionReceipt')?.Value;
   const { error: finishError } = await db.rpc('finish_mpesa_transaction', {
     p_transaction_id: tx.id, p_success: result.ResultCode === 0,
