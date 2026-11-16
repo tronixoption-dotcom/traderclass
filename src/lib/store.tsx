@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { getPrice, startFeed, subscribeFeed } from "./feed";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +19,7 @@ import {
 } from "./trading";
 import { getSymbol } from "./symbols";
 import { DEFAULT_SETTINGS, actionAllowed, type SiteSettings } from "./admin-rules";
+import { placeRealTrade, settleDueRealTrades } from "./real-trading.functions";
 
 export type Trade = {
   id: string;
@@ -33,6 +35,7 @@ export type Trade = {
   duration: number;
   status: TradeStatus;
   byRobot?: boolean;
+  real?: boolean;
 };
 
 export type Transaction = {
@@ -64,6 +67,7 @@ export type AppState = {
   name: string;
   balances: Record<AccountId, number>;
   active: AccountId;
+  accountMode: "demo" | "real";
   trades: Trade[];
   transactions: Transaction[];
   theme: "light" | "dark";
@@ -81,6 +85,7 @@ export function freshState(): AppState {
     name: "Practice Trader",
     balances: { USD: STARTING_BALANCE, USDT: STARTING_BALANCE },
     active: "USDT",
+    accountMode: "demo",
     trades: [],
     transactions: [],
     theme: "light",
@@ -103,6 +108,11 @@ type Ctx = {
   signOut: () => Promise<void>;
   transfer: (from: AccountId, to: AccountId, amount: number) => string | null;
   setActive: (a: AccountId) => void;
+  setAccountMode: (mode: "demo" | "real") => void;
+  realBalance: number;
+  realTrades: Trade[];
+  realSettings: { enabled: boolean; minStake: number; maxStake: number };
+  submitRealTrade: (trade: { symbol: string; direction: Direction; stake: number; duration: number }) => Promise<string | null>;
   setTheme: (t: "light" | "dark") => void;
   setName: (n: string) => void;
   setRobot: (r: Partial<RobotConfig>) => void;
@@ -128,6 +138,8 @@ export function robotSession(s: AppState) {
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const openReal = useServerFn(placeRealTrade);
+  const settleReal = useServerFn(settleDueRealTrades);
   const [state, setState] = useState<AppState>(freshState);
   const [hydrated, setHydrated] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -135,6 +147,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [synced, setSynced] = useState(false);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
+  const [realBalance, setRealBalance] = useState(0);
+  const [realTrades, setRealTrades] = useState<Trade[]>([]);
+  const [realSettings, setRealSettings] = useState({ enabled: false, minStake: 1, maxStake: 100 });
   const settingsRef = useRef(siteSettings);
   settingsRef.current = siteSettings;
   const ref = useRef(state);
@@ -169,7 +184,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const { data, error } = await supabase.from('site_settings').select('trading_enabled,robot_enabled,deposits_enabled,withdrawals_enabled,announcement').maybeSingle();
+      const { data, error } = await supabase.from('site_settings').select('trading_enabled,robot_enabled,deposits_enabled,withdrawals_enabled,real_trading_enabled,real_min_stake,real_max_stake,deposit_fee_percent,withdrawal_fee_percent,announcement').maybeSingle();
       if (active && !error) {
         const next = data ?? DEFAULT_SETTINGS;
         settingsRef.current = next;
@@ -181,6 +196,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const timer = setInterval(load, 10000);
     return () => { active = false; clearInterval(timer); };
   }, [commit]);
+
+  useEffect(() => {
+    if (!user || !synced) { setRealBalance(0); setRealTrades([]); return; }
+    let active = true;
+    const refresh = async () => {
+      try {
+        const result = await settleReal();
+        if (!active) return;
+        setRealBalance(result.balance);
+        if ('settings' in result) setRealSettings(result.settings);
+        setRealTrades(result.trades.map((row) => ({ id: row.id, symbol: row.symbol, direction: row.direction as Direction, stake: Number(row.stake), entry: Number(row.entry_price), close: row.close_price === null ? undefined : Number(row.close_price), payout: Number(row.payout), account: 'USDT' as const, openedAt: Date.parse(row.created_at), expiresAt: Date.parse(row.expires_at), duration: row.duration_seconds, status: row.status === 'open' ? 'active' : row.status as TradeStatus, real: true })));
+      } catch (error) { if (active) console.error('Refreshing real trading wallet failed', error); }
+    };
+    void refresh();
+    const timer = setInterval(() => { void refresh(); }, 2000);
+    return () => { active = false; clearInterval(timer); };
+  }, [user?.id, synced, settleReal]);
 
   const placeTrade: Ctx["placeTrade"] = useCallback(
     ({ symbol, direction, stake, duration, byRobot }) => {
@@ -386,6 +418,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return null;
       },
       setActive: (a) => commit({ ...ref.current, active: a }),
+      setAccountMode: (mode) => commit({ ...ref.current, accountMode: mode }),
+      realBalance,
+      realTrades,
+      realSettings,
+      submitRealTrade: async (trade) => {
+        if (!user) return 'Sign in to use a real account';
+        try {
+          const result = await openReal({ data: { ...trade, requestId: crypto.randomUUID() } });
+          setRealBalance(result.balance);
+          const row = result.trade;
+          const mapped: Trade = { id: row.id, symbol: row.symbol, direction: row.direction as Direction, stake: Number(row.stake), entry: Number(row.entry_price), account: 'USDT' as const, openedAt: Date.parse(row.created_at), expiresAt: Date.parse(row.expires_at), duration: row.duration_seconds, status: 'active', real: true };
+          setRealTrades((current) => [mapped, ...current.filter((item) => item.id !== mapped.id)].slice(0, 100));
+          return null;
+        } catch (error) { return error instanceof Error ? error.message : 'Could not open real trade'; }
+      },
       setTheme: (t) => commit({ ...ref.current, theme: t }),
       setName: (n) => {
         commit({ ...ref.current, name: n });
@@ -400,6 +447,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       },
       setRobot: (r) => {
+        if (r.running && ref.current.accountMode === 'real') { toast.error('The robot is available for demo accounts only'); return; }
         if (r.running && !actionAllowed(settingsRef.current, 'robot')) { toast.error('Robot trading is currently paused'); return; }
         const cur = ref.current.robot;
         const startedAt = r.running && !cur.running ? Date.now() : cur.startedAt;
@@ -407,7 +455,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       reset: () => commit({ ...freshState(), theme: ref.current.theme }),
     }),
-    [state, siteSettings, hydrated, placeTrade, commit, user, authReady, profile, synced],
+    [state, siteSettings, hydrated, placeTrade, commit, user, authReady, profile, synced, realBalance, realTrades, realSettings, openReal],
   );
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;

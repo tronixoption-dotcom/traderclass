@@ -4,9 +4,33 @@ import { buildHistory, getPrice, subscribeFeed, type Candle } from "@/lib/feed";
 import { getSymbol } from "@/lib/symbols";
 import type { Trade } from "@/lib/store";
 import { resolveToken } from "./color";
+import { OKX_INSTRUMENTS } from '@/lib/okx-market';
+import { hasFreshExchangeQuote } from '@/lib/feed';
 
 export type ChartKind = "bars" | "candles" | "hollow" | "line" | "area" | "baseline";
 export type Indicators = { ma: boolean; ema: boolean };
+
+async function okxHistory(symbol: string, timeframe: number, count: number): Promise<Candle[]> {
+  const instId = OKX_INSTRUMENTS[symbol];
+  if (!instId) return [];
+  const bar = timeframe === 15 ? '1s' : ({ 60: '1m', 300: '5m', 900: '15m', 1800: '30m', 3600: '1H', 14400: '4H', 86400: '1D' } as Record<number, string>)[timeframe];
+  if (!bar) return [];
+  const limit = timeframe === 15 ? Math.min(300, count * 15) : Math.min(300, count);
+  const response = await fetch(`https://www.okx.com/api/v5/market/history-candles?instId=${encodeURIComponent(instId)}&bar=${bar}&limit=${limit}`, { cache: 'no-store' });
+  if (!response.ok) throw new Error('OKX historical market data unavailable');
+  const payload = await response.json() as { code: string; data?: string[][] };
+  if (payload.code !== '0' || !payload.data) throw new Error('OKX historical market data unavailable');
+  const candles = payload.data.filter((row) => row[8] === '1' && Number.isFinite(Number(row[0])) && Number.isFinite(Number(row[1])) && Number.isFinite(Number(row[2])) && Number.isFinite(Number(row[3])) && Number.isFinite(Number(row[4]))).map((row) => ({ time: Math.floor(Number(row[0]) / 1000), open: Number(row[1]), high: Number(row[2]), low: Number(row[3]), close: Number(row[4]) })).sort((a, b) => a.time - b.time);
+  if (timeframe !== 15) return candles.slice(-count);
+  const grouped = new Map<number, Candle>();
+  for (const candle of candles) {
+    const bucket = candle.time - (candle.time % 15);
+    const current = grouped.get(bucket);
+    if (!current) grouped.set(bucket, { ...candle, time: bucket });
+    else grouped.set(bucket, { ...current, high: Math.max(current.high, candle.high), low: Math.min(current.low, candle.low), close: candle.close });
+  }
+  return [...grouped.values()].slice(-count);
+}
 
 /** Handle given to the drawing layer and toolbar once the chart is ready. */
 export type ChartApi = {
@@ -33,6 +57,7 @@ export function PriceChart({
   indicators,
   onApi,
   desktop = false,
+  marketSource = 'practice',
 }: {
   symbol: string;
   timeframe: number;
@@ -42,6 +67,7 @@ export function PriceChart({
   indicators: Indicators;
   onApi?: (api: ChartApi | null) => void;
   desktop?: boolean;
+  marketSource?: 'practice' | 'okx';
 }) {
   const el = useRef<HTMLDivElement>(null);
   const seriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
@@ -122,14 +148,19 @@ export function PriceChart({
 
       const priceFormat = { type: "price" as const, precision, minMove: 1 / 10 ** precision };
       let series: ISeriesApi<SeriesType>;
-      const history = buildHistory(symbol, timeframe, wide ? 320 : 160);
+      let history: Candle[];
+      if (marketSource === 'okx') {
+        try { history = await okxHistory(symbol, timeframe, wide ? 320 : 160); }
+        catch { history = []; }
+      } else history = buildHistory(symbol, timeframe, wide ? 320 : 160);
+      if (cancelled || !el.current) { chart.remove(); return; }
       if (kind === "area") {
         series = chart.addSeries(lc.AreaSeries, { lineColor: c.line, topColor: c.areaTop, bottomColor: c.areaBottom, lineWidth: 2, priceFormat, priceLineColor: c.up, priceLineStyle: lc.LineStyle.Dotted });
       } else if (kind === "line") {
         series = chart.addSeries(lc.LineSeries, { color: c.line, lineWidth: 2, priceFormat, priceLineColor: c.up, priceLineStyle: lc.LineStyle.Dotted });
       } else if (kind === "baseline") {
         series = chart.addSeries(lc.BaselineSeries, {
-          baseValue: { type: "price", price: (history[0] as Candle).close },
+          baseValue: { type: "price", price: history[0]?.close ?? getPrice(symbol) },
           topLineColor: c.up,
           bottomLineColor: c.down,
           priceFormat,
@@ -182,6 +213,7 @@ export function PriceChart({
       onApiRef.current?.({ chart, series, bars: () => bars });
 
       unsub = subscribeFeed(() => {
+        if (marketSource === 'okx' && !hasFreshExchangeQuote(symbol)) return;
         const price = getPrice(symbol);
         const now = Math.floor(Date.now() / 1000);
         const bucket = now - (now % timeframe);
@@ -213,7 +245,7 @@ export function PriceChart({
       chart?.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, timeframe, kind, theme, indicators.ma, indicators.ema, desktop]);
+  }, [symbol, timeframe, kind, theme, indicators.ma, indicators.ema, desktop, marketSource]);
 
   const activeKey = trades
     .filter((t) => t.status === "active" && t.symbol === symbol)

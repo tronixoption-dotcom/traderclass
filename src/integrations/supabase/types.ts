@@ -32,6 +32,24 @@ export type Database = {
         Update: { id?: string; user_id?: string; method_id?: string | null; method_name?: string; kind?: string; asset?: string; amount?: number; status?: string; user_reference?: string; destination?: string; admin_note?: string; reviewed_by?: string | null; reviewed_at?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
+      real_trades: {
+        Row: { id: string; request_id: string; user_id: string; symbol: string; inst_id: string; direction: string; asset: string; stake: number; entry_price: number; entry_price_ts: number; duration_seconds: number; payout_multiplier: number; reserved_profit: number; expires_at: string; status: string; close_price: number | null; close_candle_ts: number | null; payout: number; settled_at: string | null; created_at: string }
+        Insert: { id?: string; request_id: string; user_id: string; symbol: string; inst_id: string; direction: string; asset?: string; stake: number; entry_price: number; entry_price_ts: number; duration_seconds: number; payout_multiplier?: number; reserved_profit: number; expires_at: string; status?: string; close_price?: number | null; close_candle_ts?: number | null; payout?: number; settled_at?: string | null; created_at?: string }
+        Update: { id?: string; request_id?: string; user_id?: string; symbol?: string; inst_id?: string; direction?: string; asset?: string; stake?: number; entry_price?: number; entry_price_ts?: number; duration_seconds?: number; payout_multiplier?: number; reserved_profit?: number; expires_at?: string; status?: string; close_price?: number | null; close_candle_ts?: number | null; payout?: number; settled_at?: string | null; created_at?: string }
+        Relationships: []
+      }
+      real_trading_reserves: {
+        Row: { asset: string; available: number; reserved_profit: number; reserved_stakes: number; updated_at: string }
+        Insert: { asset?: string; available?: number; reserved_profit?: number; reserved_stakes?: number; updated_at?: string }
+        Update: { asset?: string; available?: number; reserved_profit?: number; reserved_stakes?: number; updated_at?: string }
+        Relationships: []
+      }
+      real_trading_reserve_ledger: {
+        Row: { id: string; asset: string; amount: number; kind: string; available_after: number; reserved_profit_after: number; reserved_stakes_after: number; reference_id: string | null; note: string; actor_id: string | null; created_at: string }
+        Insert: { id?: string; asset?: string; amount: number; kind: string; available_after: number; reserved_profit_after: number; reserved_stakes_after: number; reference_id?: string | null; note?: string; actor_id?: string | null; created_at?: string }
+        Update: { id?: string; asset?: string; amount?: number; kind?: string; available_after?: number; reserved_profit_after?: number; reserved_stakes_after?: number; reference_id?: string | null; note?: string; actor_id?: string | null; created_at?: string }
+        Relationships: []
+      }
       admin_audit: {
         Row: {
           action: string
@@ -122,6 +140,9 @@ export type Database = {
           deposit_fee_percent: number
           deposits_enabled: boolean
           id: boolean
+          real_max_stake: number
+          real_min_stake: number
+          real_trading_enabled: boolean
           robot_enabled: boolean
           trading_enabled: boolean
           updated_at: string
@@ -133,6 +154,9 @@ export type Database = {
           deposit_fee_percent?: number
           deposits_enabled?: boolean
           id?: boolean
+            real_max_stake?: number
+            real_min_stake?: number
+            real_trading_enabled?: boolean
           robot_enabled?: boolean
           trading_enabled?: boolean
           updated_at?: string
@@ -144,6 +168,9 @@ export type Database = {
           deposit_fee_percent?: number
           deposits_enabled?: boolean
           id?: boolean
+            real_max_stake?: number
+            real_min_stake?: number
+            real_trading_enabled?: boolean
           robot_enabled?: boolean
           trading_enabled?: boolean
           updated_at?: string
@@ -229,6 +256,9 @@ export type Database = {
       request_funding_deposit: { Args: { p_method_id: string; p_amount: number; p_reference?: string }; Returns: string }
       request_funding_withdrawal: { Args: { p_method_id: string; p_amount: number; p_destination: string }; Returns: string }
       review_funding_transaction: { Args: { p_transaction_id: string; p_approve: boolean; p_note?: string }; Returns: undefined }
+      open_real_trade: { Args: { p_user_id: string; p_symbol: string; p_inst_id: string; p_direction: string; p_stake: number; p_duration_seconds: number; p_entry_price: number; p_entry_price_ts: number; p_request_id: string }; Returns: string }
+      settle_real_trade: { Args: { p_trade_id: string; p_close_price: number; p_close_candle_ts: number }; Returns: string }
+      adjust_real_trading_reserve: { Args: { p_actor_id: string; p_delta: number; p_note: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

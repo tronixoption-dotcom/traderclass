@@ -17,9 +17,10 @@ export const Route = createFileRoute("/trades")({
 
 function TradesPage() {
   useTick();
-  const { state } = useStore();
-  const active = state.trades.filter((t) => t.status === "active");
-  const history = state.trades.filter((t) => t.status !== "active");
+  const { state, realTrades } = useStore();
+  const allTrades = [...state.trades, ...realTrades].sort((a, b) => b.openedAt - a.openedAt);
+  const active = allTrades.filter((t) => t.status === "active");
+  const history = allTrades.filter((t) => t.status !== "active");
   return (
     <div>
       <PageHeader title="Trades" />
@@ -81,6 +82,7 @@ function ActiveRow({ t }: { t: Trade }) {
         <div className="flex-1">
           <div className="flex items-center gap-[6px] text-[13.5px] font-bold">
             {t.symbol} <DirTag d={t.direction} />
+            <span className="text-[10px] font-medium text-muted-foreground">{t.real ? 'Real · OKX' : 'Demo'}</span>
             {t.byRobot && <span className="text-[10.5px] font-normal text-muted-foreground">Robot</span>}
           </div>
           <div className="tabular text-[11.5px] text-muted-foreground">
@@ -109,6 +111,7 @@ function HistoryRow({ t }: { t: Trade }) {
       <div className="flex-1">
         <div className="flex items-center gap-[6px] text-[13.5px] font-bold">
           {t.symbol} <DirTag d={t.direction} />
+          <span className="text-[10px] font-medium text-muted-foreground">{t.real ? 'Real · OKX' : 'Demo'}</span>
         </div>
         <div className="tabular text-[11.5px] text-muted-foreground">
           {fmtPrice(t.symbol, t.entry)} → {fmtPrice(t.symbol, t.close ?? t.entry)} · ${t.stake} · {formatDuration(t.duration)}

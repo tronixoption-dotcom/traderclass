@@ -1,5 +1,5 @@
 import { ClientOnly, Link } from "@tanstack/react-router";
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, Plus, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -7,7 +7,8 @@ import { PriceChart, type ChartApi, type ChartKind, type Indicators } from "@/co
 import { ChartDrawings, type Drawing, type Tool } from "@/components/app/ChartDrawings";
 import { AccountIcon, ChartTypeIcons, SymbolIcon, TVMark, ToolIcons, ToolbarIcons } from "@/components/app/icons";
 import { useStore, useTick } from "@/lib/store";
-import { getQuote } from "@/lib/feed";
+import { clearExchangeQuote, getQuote, hasFreshExchangeQuote, setExchangeQuote } from "@/lib/feed";
+import { isOkxSymbol, OKX_INSTRUMENTS } from "@/lib/okx-market";
 import { getSymbol } from "@/lib/symbols";
 import { InstrumentPicker } from "@/components/app/InstrumentPicker";
 import { fmtPrice } from "@/lib/format";
@@ -38,7 +39,8 @@ const FAV_TYPES: ChartKind[] = ["bars", "candles", "area"];
 const EMOJIS = ["😀", "😎", "🚀", "🔥", "💰", "📈", "📉", "⚠️", "✅", "❌", "⭐", "🎯"];
 
 export function MarketView({ desktop = false, overlay }: { desktop?: boolean; overlay?: ReactNode }) {
-  const { state } = useStore();
+  useTick();
+  const { state, accountMode, realTrades } = useStore();
   const [symbol, setSymbol] = useState("XAUUSD");
   const [tf, setTf] = useState(900);
   const [kind, setKind] = useState<ChartKind>("candles");
@@ -56,6 +58,39 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
   const setDrawings = useCallback((fn: (d: Drawing[]) => Drawing[]) => setDrawingsMap((m) => ({ ...m, [key]: fn(m[key] ?? []) })), [key]);
   const onApi = useCallback((a: ChartApi | null) => setApi(a), []);
   const tfLabel = INTERVALS.find((i) => i.s === tf)?.label ?? "";
+  const [okxConnected, setOkxConnected] = useState(false);
+
+  useEffect(() => {
+    if (accountMode !== 'real' || !isOkxSymbol(symbol)) {
+      setOkxConnected(false);
+      clearExchangeQuote(symbol);
+      return;
+    }
+    let socket: WebSocket | null = null;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let stopped = false;
+    const connect = () => {
+      if (stopped) return;
+      socket = new WebSocket('wss://ws.okx.com/ws/v5/public');
+      socket.onopen = () => {
+        setOkxConnected(true);
+        socket?.send(JSON.stringify({ op: 'subscribe', args: [{ channel: 'tickers', instId: OKX_INSTRUMENTS[symbol] }] }));
+      };
+      socket.onmessage = (event) => {
+        try {
+          const message = JSON.parse(String(event.data)) as { data?: { last?: string; bidPx?: string; askPx?: string; ts?: string }[] };
+          const quote = message.data?.[0];
+          if (!quote) return;
+          const last = Number(quote.last); const bid = Number(quote.bidPx) || last; const ask = Number(quote.askPx) || last; const timestamp = Number(quote.ts);
+          setExchangeQuote(symbol, last, bid, ask, timestamp);
+        } catch { /* Ignore non-data OKX WebSocket messages. */ }
+      };
+      socket.onerror = () => setOkxConnected(false);
+      socket.onclose = () => { setOkxConnected(false); if (!stopped) retry = setTimeout(connect, 1500); };
+    };
+    connect();
+    return () => { stopped = true; if (retry) clearTimeout(retry); socket?.close(); setOkxConnected(false); clearExchangeQuote(symbol); };
+  }, [accountMode, symbol]);
 
   const snapshot = () => {
     if (!api) return;
@@ -79,6 +114,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex h-[45px] shrink-0 items-center justify-between px-[8.5px] md:h-[60px] md:px-[20px]">
         <div className="flex min-w-0 items-center gap-3">{!desktop && <div className="scale-75"><AdminEntry /></div>}<InstrumentPicker symbol={symbol} onChange={setSymbol} /></div>
+        {accountMode === 'real' && <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${okxConnected && hasFreshExchangeQuote(symbol) ? 'bg-success-soft text-success' : 'bg-muted text-muted-foreground'}`}>{isOkxSymbol(symbol) ? okxConnected && hasFreshExchangeQuote(symbol) ? 'OKX LIVE' : 'CONNECTING OKX' : 'DEMO MARKET ONLY'}</span>}
         <AccountPicker />
       </div>
 
@@ -201,7 +237,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
           {/* Chart pane */}
           <div className="relative min-w-0 flex-1 overflow-hidden rounded-l-[5px] bg-background">
             <ClientOnly fallback={<div className="absolute inset-0 animate-pulse bg-muted" />}>
-              <PriceChart desktop={desktop} symbol={symbol} timeframe={tf} kind={kind} theme={state.theme} trades={state.trades} indicators={indicators} onApi={onApi} />
+              <PriceChart desktop={desktop} symbol={symbol} timeframe={tf} kind={kind} theme={state.theme} trades={[...state.trades,...realTrades]} indicators={indicators} onApi={onApi} marketSource={accountMode==='real'&&isOkxSymbol(symbol)?'okx':'practice'} />
               <ChartDrawings
                 api={api}
                 tool={tool}
@@ -336,37 +372,37 @@ function ChartLegend({ symbol }: { symbol: string }) {
 }
 
 function AccountPicker() {
-  const { state, setActive } = useStore();
+  const { state, setActive, setAccountMode, realBalance } = useStore();
   const a = state.active;
+  const real = state.accountMode === 'real';
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="flex h-[41.5px] items-center rounded-full border border-border pl-[9.5px] pr-[14px] text-left hover:bg-muted md:h-[50px] md:pl-[14px] md:pr-[18px]">
-          <AccountIcon account={a} className="md:size-[34px]" />
+          <AccountIcon account={real ? 'USDT' : a} className="md:size-[34px]" />
           <span className="ml-[11px] mr-[10px] block md:ml-[14px] md:mr-[14px]">
-            <span className="block text-[10px] leading-[13px] text-muted-foreground md:text-[12px] md:leading-[16px]">Practice {a} Account</span>
-            <span className="tabular block text-[14.5px] font-bold leading-[18px] md:text-[15.5px] md:leading-[20px]">{formatMoney(state.balances[a], a)}</span>
+            <span className="block text-[10px] leading-[13px] text-muted-foreground md:text-[12px] md:leading-[16px]">{real ? 'Real USDT Account' : `Demo ${a} Account`}</span>
+            <span className="tabular block text-[14.5px] font-bold leading-[18px] md:text-[15.5px] md:leading-[20px]">{formatMoney(real ? realBalance : state.balances[a], real ? 'USDT' : a)}</span>
           </span>
           <ChevronDown className="size-[18px] text-muted-foreground" strokeWidth={1.8} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
         {(["USD", "USDT"] as AccountId[]).map((id) => (
-          <DropdownMenuItem key={id} onClick={() => setActive(id)} className={cn("gap-2.5 py-2", id === a && "bg-primary-soft")}>
+          <DropdownMenuItem key={id} onClick={() => { setAccountMode('demo'); setActive(id); }} className={cn("gap-2.5 py-2", !real && id === a && "bg-primary-soft")}>
             <AccountIcon account={id} />
-            <div className="flex-1">
-              <div className="text-[13px] font-medium">Practice {id} Account</div>
-              <div className="tabular text-[11px] text-muted-foreground">{formatMoney(state.balances[id], id)}</div>
-            </div>
-            {id === a && <Check className="size-4 text-primary" />}
+            <div className="flex-1"><div className="text-[13px] font-medium">Demo {id} Account</div><div className="tabular text-[11px] text-muted-foreground">{formatMoney(state.balances[id], id)}</div></div>
+            {!real && id === a && <Check className="size-4 text-primary" />}
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link to="/deposit" className="gap-2.5 py-2 text-[13px] font-medium text-primary">
-            <Wallet className="size-4" /> Deposit
-          </Link>
+        <DropdownMenuItem onClick={() => setAccountMode('real')} className={cn("gap-2.5 py-2", real && "bg-primary-soft")}>
+          <AccountIcon account="USDT" />
+          <div className="flex-1"><div className="text-[13px] font-medium">Real USDT Account</div><div className="tabular text-[11px] text-muted-foreground">{formatMoney(realBalance, 'USDT')}</div></div>
+          {real && <Check className="size-4 text-primary" />}
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild><Link to="/deposit" className="gap-2.5 py-2 text-[13px] font-medium text-primary"><Wallet className="size-4" /> Deposit</Link></DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -395,7 +431,7 @@ function Stepper({ label, value, onMinus, onPlus, children }: { label: string; v
 
 /** Shared duration/stake state and order placement for both trade panels. */
 function useTicket(symbol: string) {
-  const { placeTrade } = useStore();
+  const { placeTrade, accountMode, submitRealTrade, realBalance, realSettings, state } = useStore();
   const [duration, setDuration] = useState(5);
   const [stake, setStake] = useState(5);
   const [stakeText, setStakeText] = useState("5");
@@ -409,15 +445,29 @@ function useTicket(symbol: string) {
     const n = Number(t);
     if (Number.isFinite(n) && n > 0) setStake(Math.round(n * 100) / 100);
   };
-  const trade = (direction: "buy" | "sell") => {
+  const trade = async (direction: "buy" | "sell") => {
+    if (accountMode === 'real') {
+      if (!realSettings.enabled) { toast.error('Real account trading is currently paused by the administrator'); return; }
+      if (!isOkxSymbol(symbol)) { toast.error('Real trading is only available for supported OKX crypto markets'); return; }
+      if (!hasFreshExchangeQuote(symbol)) { toast.error('Waiting for a fresh OKX market quote'); return; }
+      if (stake < realSettings.minStake || stake > realSettings.maxStake) { toast.error(`Real stake must be between ${realSettings.minStake} and ${realSettings.maxStake} USDT`); return; }
+      if (stake > realBalance) { toast.error('Insufficient available USDT balance'); return; }
+      const error = await submitRealTrade({ symbol, direction, stake, duration });
+      if (error) toast.error(error);
+      else toast.success(`${direction.toUpperCase()} ${symbol} ? ${stake} USDT ? ${formatDuration(duration)} ? OKX price`);
+      return;
+    }
     const err = placeTrade({ symbol, direction, stake, duration });
     if (err) toast.error(err);
-    else toast(`${direction.toUpperCase()} ${symbol} · $${stake} · ${formatDuration(duration)}`, { duration: 1800 });
+    else toast(`${direction.toUpperCase()} ${symbol} ? $${stake} ? ${formatDuration(duration)}`, { duration: 1800 });
   };
   return {
     duration,
     stake,
     stakeText,
+    currency: accountMode === 'real' ? 'USDT' : state.active,
+    real: accountMode === 'real',
+    canTrade: accountMode !== 'real' || (realSettings.enabled && isOkxSymbol(symbol) && hasFreshExchangeQuote(symbol) && stake >= realSettings.minStake && stake <= realSettings.maxStake && stake <= realBalance),
     durationDown: () => setDuration(stepValue(DURATIONS, duration, -1)),
     durationUp: () => setDuration(stepValue(DURATIONS, duration, 1)),
     stakeDown: () => updateStake(stepValue(STAKE_STEPS, stake, -1)),
@@ -432,7 +482,7 @@ function StakeInput({ t, className }: { t: ReturnType<typeof useTicket>; classNa
   const inputRef = useRef<HTMLInputElement>(null);
   return (
     <span className={cn("inline-flex items-center", className)} onClick={() => inputRef.current?.focus()}>
-      $
+      {t.real ? 'USDT ' : '$'}
       <input
         ref={inputRef}
         aria-label="Stake amount"
@@ -463,23 +513,25 @@ function TradePanel({ symbol }: { symbol: string }) {
       </div>
       <div className="mt-[4px] flex h-[18px] items-center justify-between">
         <span className="text-[11.5px] text-muted-foreground">Payout</span>
-        <span className="tabular text-[13px] font-bold text-success">${payoutFor(t.stake).toFixed(2)}</span>
+        <span className="tabular text-[13px] font-bold text-success">{t.real ? `${payoutFor(t.stake).toFixed(2)} USDT` : `$${payoutFor(t.stake).toFixed(2)}`}</span>
       </div>
       <div className="mt-[3.5px] grid grid-cols-2 gap-[9px]">
-        <TradeButton variant="sell" label="SELL" price={q.bid.toFixed(d)} onClick={() => t.trade("sell")} />
-        <TradeButton variant="buy" label="BUY" price={q.ask.toFixed(d)} onClick={() => t.trade("buy")} />
+        <TradeButton variant="sell" label="SELL" price={t.real && !hasFreshExchangeQuote(symbol) ? "?" : q.bid.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("sell")} />
+        <TradeButton variant="buy" label="BUY" price={t.real && !hasFreshExchangeQuote(symbol) ? "?" : q.ask.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("buy")} />
       </div>
     </div>
   );
 }
 
-function TradeButton({ variant, label, price, onClick }: { variant: "buy" | "sell"; label: string; price: string; onClick: () => void }) {
+function TradeButton({ variant, label, price, onClick, disabled = false }: { variant: "buy" | "sell"; label: string; price: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
+      disabled={disabled}
       onClick={onClick}
       className={cn(
         "flex h-[31px] items-center justify-between rounded-[9px] px-[10.5px] text-trade-foreground transition-transform active:scale-[0.97]",
         variant === "sell" ? "bg-sell" : "bg-buy",
+        disabled && "cursor-not-allowed opacity-45",
       )}
     >
       <span className="text-[14.5px] font-bold leading-none">{label}</span>
@@ -523,13 +575,15 @@ function TicketCard({ label, value, onMinus, onPlus }: { label: string; value: R
   );
 }
 
-function BigTradeButton({ variant, price, onClick }: { variant: "buy" | "sell"; price: string; onClick: () => void }) {
+function BigTradeButton({ variant, price, onClick, disabled = false }: { variant: "buy" | "sell"; price: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
+      disabled={disabled}
       onClick={onClick}
       className={cn(
         "flex h-[60px] w-full items-center justify-between rounded-full pl-[20px] pr-[20px] text-trade-foreground transition-transform active:scale-[0.98]",
         variant === "sell" ? "bg-sell" : "bg-buy",
+        disabled && "cursor-not-allowed opacity-45",
       )}
     >
       <span className="text-[17px] font-black leading-none">{variant.toUpperCase()}</span>
@@ -554,13 +608,13 @@ function ManualTrade({ symbol }: { symbol: string }) {
       </div>
       <div className="mt-[16px] flex items-center justify-between px-[5px]">
         <span className="text-[13px] text-muted-foreground">Payout</span>
-        <span className="tabular text-[15px] font-bold text-success">${payoutFor(t.stake).toFixed(2)}</span>
+        <span className="tabular text-[15px] font-bold text-success">{t.real ? `${payoutFor(t.stake).toFixed(2)} USDT` : `$${payoutFor(t.stake).toFixed(2)}`}</span>
       </div>
       <div className="mt-[10px] space-y-[12px]">
-        <BigTradeButton variant="sell" price={q.bid.toFixed(d)} onClick={() => t.trade("sell")} />
-        <BigTradeButton variant="buy" price={q.ask.toFixed(d)} onClick={() => t.trade("buy")} />
+        <BigTradeButton variant="sell" price={t.real && !hasFreshExchangeQuote(symbol) ? "?" : q.bid.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("sell")} />
+        <BigTradeButton variant="buy" price={t.real && !hasFreshExchangeQuote(symbol) ? "?" : q.ask.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("buy")} />
       </div>
-      <p className="mt-[14px] px-[4px] text-[11px] leading-[16px] text-muted-foreground">Practice money only. Prices are simulated.</p>
+      <p className="mt-[14px] px-[4px] text-[11px] leading-[16px] text-muted-foreground">{t.real ? 'Real trades settle from completed OKX 1-second candles.' : 'Demo account only. Prices and outcomes are simulated.'}</p>
     </aside>
   );
 }

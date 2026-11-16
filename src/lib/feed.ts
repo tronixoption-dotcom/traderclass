@@ -6,6 +6,7 @@ type Listener = () => void;
 
 const prices: Record<string, number> = {};
 const opens: Record<string, number> = {};
+const exchangeQuotes: Record<string, { mid: number; bid: number; ask: number; timestamp: number }> = {};
 const listeners = new Set<Listener>();
 let timer: ReturnType<typeof setInterval> | null = null;
 
@@ -46,12 +47,35 @@ export function subscribeFeed(l: Listener) {
 }
 
 export function getPrice(id: string): number {
-  return prices[id] ?? getSymbol(id).base;
+  const live = exchangeQuotes[id];
+  return live && Date.now() - live.timestamp <= 5000 ? live.mid : prices[id] ?? getSymbol(id).base;
+}
+
+export function setExchangeQuote(id: string, mid: number, bid: number, ask: number, timestamp: number) {
+  if (![mid, bid, ask, timestamp].every(Number.isFinite) || mid <= 0 || bid <= 0 || ask <= 0 || timestamp > Date.now() + 1000 || Date.now() - timestamp > 5000) return;
+  if (!exchangeQuotes[id]) opens[id] = mid;
+  exchangeQuotes[id] = { mid, bid, ask, timestamp };
+  listeners.forEach((listener) => listener());
+}
+
+export function clearExchangeQuote(id: string) {
+  delete exchangeQuotes[id];
+  listeners.forEach((listener) => listener());
+}
+
+export function hasFreshExchangeQuote(id: string) {
+  const quote = exchangeQuotes[id];
+  return !!quote && Date.now() - quote.timestamp <= 5000;
 }
 
 export function getQuote(id: string) {
   const s = getSymbol(id);
   const mid = getPrice(id);
+  const live = exchangeQuotes[id];
+  if (live && Date.now() - live.timestamp <= 5000) {
+    const change = mid - (opens[id] ?? mid);
+    return { mid, bid: live.bid, ask: live.ask, change, changePct: (change / (opens[id] ?? mid)) * 100 };
+  }
   const bid = mid - s.spread / 2;
   const ask = mid + s.spread / 2;
   const open = opens[id] ?? s.base;
