@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, ChevronRight, History, List, LogIn, LogOut, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
@@ -18,9 +19,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useStore } from "@/lib/store";
 import { STARTING_BALANCE, formatMoney } from "@/lib/trading";
+import { loadFunding } from "@/lib/funding.functions";
+import { loadMpesaWallet } from "@/lib/mpesa.functions";
 
 export const Route = createFileRoute("/account")({
-  head: () => pageHead("Account", "Your practice balance, funds, transfers, history and settings."),
+  head: () => pageHead("Account", "Your wallet balance, deposits, withdrawals, history and settings."),
   component: AccountPage,
 });
 
@@ -90,6 +93,13 @@ function Row({ to, label, icon }: { to: RowTo; label: string; icon: ReactNode })
 
 function AccountPage() {
   const { state, setTheme, reset, hydrated, user, profile, signOut } = useStore();
+  const [fundingBalances, setFundingBalances] = useState<{ USD: number; USDT: number; KES: number } | null>(null);
+  const loadBalances = useCallback(async () => {
+    if (!user) { setFundingBalances(null); return; }
+    const [funding, mpesa] = await Promise.all([loadFunding(), loadMpesaWallet()]);
+    setFundingBalances({ USD: Number(funding.wallets.find((wallet) => wallet.asset === "USD")?.balance ?? 0), USDT: Number(funding.wallets.find((wallet) => wallet.asset === "USDT")?.balance ?? 0), KES: Number(mpesa.balanceKes) });
+  }, [user]);
+  useEffect(() => { void loadBalances().catch(() => undefined); }, [loadBalances]);
   const dark = state.theme === "dark";
   return (
     <div className="pb-[14px]">
@@ -104,9 +114,10 @@ function AccountPage() {
         </div>
       </div>
       <div className="mx-[16px] flex h-[43px] items-center justify-between border-b border-border px-[4.5px]">
-        <span className="text-[14.5px] text-muted-foreground">Practice balance</span>
-        <span className="tabular text-[16.5px] font-bold">{formatMoney(state.balances[state.active], state.active)}</span>
+        <span className="text-[14.5px] text-muted-foreground">Balance</span>
+        <span className="tabular text-[16.5px] font-bold">{fundingBalances ? formatMoney(fundingBalances[state.active], state.active) : "—"}</span>
       </div>
+      <div className="mx-[20px] mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground"><span>USD {fundingBalances?.USD.toLocaleString() ?? "—"}</span><span>USDT {fundingBalances?.USDT.toLocaleString() ?? "—"}</span><span>KES {fundingBalances?.KES.toLocaleString() ?? "—"}</span></div>
 
       <div className="space-y-[7px] px-[20px] pt-[12.5px]">
         {hydrated && !user && (

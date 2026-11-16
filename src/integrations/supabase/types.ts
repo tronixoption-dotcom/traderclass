@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      funding_methods: {
+        Row: { id: string; code: string; name: string; provider: string; asset: string; network: string; deposit_address: string; instructions: string; min_amount: number; max_amount: number; deposits_enabled: boolean; withdrawals_enabled: boolean; sort_order: number; created_at: string; updated_at: string }
+        Insert: { id?: string; code: string; name: string; provider: string; asset: string; network?: string; deposit_address?: string; instructions?: string; min_amount?: number; max_amount?: number; deposits_enabled?: boolean; withdrawals_enabled?: boolean; sort_order?: number; created_at?: string; updated_at?: string }
+        Update: { id?: string; code?: string; name?: string; provider?: string; asset?: string; network?: string; deposit_address?: string; instructions?: string; min_amount?: number; max_amount?: number; deposits_enabled?: boolean; withdrawals_enabled?: boolean; sort_order?: number; updated_at?: string }
+        Relationships: []
+      }
+      funding_wallets: {
+        Row: { user_id: string; asset: string; balance: number; updated_at: string }
+        Insert: { user_id: string; asset: string; balance?: number; updated_at?: string }
+        Update: { user_id?: string; asset?: string; balance?: number; updated_at?: string }
+        Relationships: []
+      }
+      funding_transactions: {
+        Row: { id: string; user_id: string; method_id: string | null; method_name: string; kind: string; asset: string; amount: number; status: string; user_reference: string; destination: string; admin_note: string; reviewed_by: string | null; reviewed_at: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; user_id: string; method_id?: string | null; method_name: string; kind: string; asset: string; amount: number; status: string; user_reference?: string; destination?: string; admin_note?: string; reviewed_by?: string | null; reviewed_at?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; user_id?: string; method_id?: string | null; method_name?: string; kind?: string; asset?: string; amount?: number; status?: string; user_reference?: string; destination?: string; admin_note?: string; reviewed_by?: string | null; reviewed_at?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
       admin_audit: {
         Row: {
           action: string
@@ -202,6 +220,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      request_funding_deposit: { Args: { p_method_id: string; p_amount: number; p_reference?: string }; Returns: string }
+      request_funding_withdrawal: { Args: { p_method_id: string; p_amount: number; p_destination: string }; Returns: string }
+      review_funding_transaction: { Args: { p_transaction_id: string; p_approve: boolean; p_note?: string }; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

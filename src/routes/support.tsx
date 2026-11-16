@@ -16,17 +16,17 @@ import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/support")({
-  head: () => pageHead("Support", "Chat with the Goldmarket support assistant about practice trading."),
+  head: () => pageHead("Support", "Chat with the Tradeclass support assistant about your account."),
   component: SupportPage,
 });
 
 type Topic = { q: string; a: string; keys: string[] };
 const TOPICS: Topic[] = [
-  { q: "Is this real money?", keys: ["real", "money", "deposit", "withdraw", "cash"], a: "No. Goldmarket is a practice app. Every balance is virtual and nothing can be deposited or withdrawn." },
+  { q: "Are deposits and trades real?", keys: ["real", "money", "deposit", "withdraw", "cash"], a: "Wallet deposits and withdrawals are real and use the payment methods shown in your account. Crypto deposits are credited after staff verify the transaction on the selected network. Trades and market prices in the trading workspace are simulated and do not use wallet funds." },
   { q: "How does a trade work?", keys: ["trade", "buy", "sell", "how", "work"], a: "Pick a market, a duration and a stake, then tap BUY if you think the price will be higher when time runs out, or SELL if you think it will be lower." },
   { q: "How much does a win pay?", keys: ["pay", "payout", "win", "profit", "8.50"], a: `A winning trade pays your stake × ${PAYOUT_MULTIPLIER} (a $5 stake pays $8.50). A losing trade loses the stake. If the price is exactly the same, your stake is returned.` },
   { q: "Are the prices real?", keys: ["price", "chart", "real", "market"], a: "No. Prices are simulated to behave like real markets so you can practice. Don't use them for real trading decisions." },
-  { q: "I ran out of practice money", keys: ["ran out", "balance", "funds", "zero", "empty", "top"], a: `Open Account → Add practice funds, or log out to start a fresh account with ${STARTING_BALANCE.toLocaleString()} in each balance.` },
+  { q: "I ran out of practice money", keys: ["ran out", "balance", "funds", "zero", "empty", "top"], a: `Practice balances are separate from your wallet. Log out to start a fresh practice account with ${STARTING_BALANCE.toLocaleString()} in each balance.` },
   { q: "What does the Robot do?", keys: ["robot", "bot", "auto", "copy"], a: "It places practice trades for you automatically using a simple rule you choose. It is for learning only and does not predict the market." },
   { q: "How do the chart tools work?", keys: ["draw", "tool", "line", "fib", "ruler", "magnet"], a: "Pick a tool on the left of the chart, then tap two points on the chart. Tap the bin icon at the bottom of the tools to remove your drawings." },
 ];

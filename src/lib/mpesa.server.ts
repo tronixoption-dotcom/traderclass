@@ -126,10 +126,12 @@ export async function startB2cWithdrawal(userId: string, rawAmount: number, rawP
   const bearer = await token();
   const db = database();
   await requirePaymentsEnabled(db, 'withdrawal');
-  const { count: confirmedDeposits, error: activationError } = await db.from('mpesa_transactions').select('id', { count: 'exact', head: true })
-    .eq('user_id', userId).eq('kind', 'deposit').eq('status', 'completed');
-  if (activationError) throw new Error('Could not check account activation');
-  if ((confirmedDeposits ?? 0) < 1) throw new Error('Make one successful M-Pesa deposit to activate withdrawals');
+  const [mpesaDeposits, otherDeposits] = await Promise.all([
+    db.from('mpesa_transactions').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('kind', 'deposit').eq('status', 'completed'),
+    db.from('funding_transactions').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('kind', 'deposit').eq('status', 'completed'),
+  ]);
+  if (mpesaDeposits.error || otherDeposits.error) throw new Error('Could not check account activation');
+  if ((mpesaDeposits.count ?? 0) + (otherDeposits.count ?? 0) < 1) throw new Error('Make one successful deposit to activate withdrawals');
   const { count, error: countError } = await db.from('mpesa_transactions').select('id', { count: 'exact', head: true })
     .eq('user_id', userId).eq('kind', 'withdrawal').eq('status', 'processing');
   if (countError) throw new Error('Could not check pending withdrawals');
