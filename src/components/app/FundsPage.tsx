@@ -5,9 +5,9 @@ import { MpesaWallet } from "./MpesaWallet";
 export function FundsPage({ mode }: { mode: "deposit" | "withdraw" }) {
   return (
     <div className="pb-6">
-      <PageHeader title={mode === "deposit" ? "Deposit KES" : "Withdraw KES"} compact />
+      <PageHeader title={mode === "deposit" ? "Deposit" : "Withdraw"} compact />
       <div className="px-[16.5px] pt-5">
-        <MpesaWallet />
+        <MpesaWallet mode={mode} />
         <p className="mt-3 text-center text-xs leading-5 text-muted-foreground">
           M-Pesa funds are held in your KES wallet. They do not change the separate simulated USD/USDT practice trading balances.
         </p>

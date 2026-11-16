@@ -66,7 +66,6 @@ function AuthPage() {
   const [mobile, setMobile] = useState("");
   const [code, setCode] = useState(ref ?? "");
   const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const selectedCountry = countries.find((item) => item.code === country) ?? countries[0];
 
@@ -89,7 +88,7 @@ function AuthPage() {
     const parsed = signUpSchema.safeParse({ email, password, username, country, mobile, referral: code.trim() });
     if (!parsed.success) { toast.error(parsed.error.issues[0]?.message ?? "Check your details"); return; }
     setBusy(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: parsed.data.email,
       password: parsed.data.password,
       options: {
@@ -104,7 +103,7 @@ function AuthPage() {
     });
     setBusy(false);
     if (error) toast.error(error.message);
-    else setSent(true);
+    else if (!data.session) toast.error("Email confirmation is enabled for this Supabase project. Disable Confirm email in Authentication settings to let new users sign in without email verification.");
   };
 
   const inputClass = "h-[48px] w-full rounded-xl border border-white/10 bg-[#070e1c] px-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#eab84e]/70 focus:ring-2 focus:ring-[#eab84e]/10";
@@ -122,13 +121,13 @@ function AuthPage() {
         </section>
 
         <section className="mx-auto w-full max-w-[490px] rounded-[24px] border border-white/10 bg-[#0b1429] p-5 shadow-[0_24px_90px_rgba(0,0,0,.3)] sm:p-8">
-          <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#edbd58]">{mode === "up" ? "Create your account" : "Welcome back"}</p><h2 className="mt-2 text-2xl font-bold tracking-tight">{sent ? "One last step" : mode === "up" ? "Start your journey" : "Sign in to your workspace"}</h2><p className="mt-2 text-xs leading-5 text-slate-400">{sent ? "Check your inbox to verify your email and finish setting up your account." : mode === "up" ? "Set up your customer profile in under a minute." : "Enter your details to continue to your private dashboard."}</p></div><span className="grid size-10 shrink-0 place-items-center rounded-xl border border-[#eab84e]/20 bg-[#eab84e]/[.08] text-[#edbd58]"><ShieldCheck className="size-5"/></span></div>
+          <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#edbd58]">{mode === "up" ? "Create your account" : "Welcome back"}</p><h2 className="mt-2 text-2xl font-bold tracking-tight">{mode === "up" ? "Start your journey" : "Sign in to your workspace"}</h2><p className="mt-2 text-xs leading-5 text-slate-400">{mode === "up" ? "Set up your customer profile in under a minute." : "Enter your details to continue to your private dashboard."}</p></div><span className="grid size-10 shrink-0 place-items-center rounded-xl border border-[#eab84e]/20 bg-[#eab84e]/[.08] text-[#edbd58]"><ShieldCheck className="size-5"/></span></div>
 
           <div className="mt-6 grid grid-cols-2 rounded-xl bg-[#070e1c] p-1" role="tablist" aria-label="Account access">
-            {(["up", "in"] as const).map((item) => <button key={item} type="button" role="tab" aria-selected={mode === item} onClick={() => { setMode(item); setSent(false); }} className={`h-10 rounded-lg text-xs font-bold transition ${mode === item ? "bg-[#eab84e] text-[#101a2a] shadow" : "text-slate-400 hover:text-white"}`}>{item === "up" ? "Create account" : "Sign in"}</button>)}
+            {(["up", "in"] as const).map((item) => <button key={item} type="button" role="tab" aria-selected={mode === item} onClick={() => setMode(item)} className={`h-10 rounded-lg text-xs font-bold transition ${mode === item ? "bg-[#eab84e] text-[#101a2a] shadow" : "text-slate-400 hover:text-white"}`}>{item === "up" ? "Create account" : "Sign in"}</button>)}
           </div>
 
-          {sent ? <div className="mt-6 rounded-xl border border-emerald-300/15 bg-emerald-300/[.06] p-4"><p className="text-sm font-semibold text-white">Verification email sent</p><p className="mt-1 text-xs leading-5 text-slate-300">We sent a link to <span className="font-semibold text-white">{email}</span>. Open it to verify your address, then sign in.</p><button type="button" onClick={() => { setSent(false); setMode("in"); }} className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-[#edbd58]">Go to sign in <ArrowRight className="size-3.5"/></button></div> : <form onSubmit={submit} className="mt-5 space-y-3.5">
+          <form onSubmit={submit} className="mt-5 space-y-3.5">
             <label className="block"><span className={labelClass}>Email address</span><span className="relative block"><Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-500"/><input className={`${inputClass} pl-10`} type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com"/></span></label>
             {mode === "up" && <>
               <label className="block"><span className={labelClass}>Username</span><span className="relative block"><UserRound className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-500"/><input className={`${inputClass} pl-10`} autoComplete="nickname" required minLength={3} maxLength={32} value={username} onChange={(event) => setUsername(event.target.value)} placeholder="your_username"/></span></label>
@@ -138,9 +137,9 @@ function AuthPage() {
             </>}
             <label className="block"><span className={labelClass}>Password</span><span className="relative block"><LockKeyhole className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-500"/><input className={`${inputClass} pl-10 pr-12`} type={showPassword ? "text" : "password"} autoComplete={mode === "in" ? "current-password" : "new-password"} required minLength={mode === "up" ? 6 : 1} maxLength={72} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••"/><button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((show) => !show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">{showPassword ? <EyeOff className="size-4"/> : <Eye className="size-4"/>}</button></span>{mode === "up" && <span className="mt-1.5 block text-[10px] text-slate-500">Use at least 6 characters with a letter and number.</span>}</label>
             <button disabled={busy} className="mt-1 inline-flex h-[49px] w-full items-center justify-center gap-2 rounded-xl bg-[#eab84e] text-sm font-extrabold text-[#101a2a] transition hover:bg-[#f1c96f] disabled:cursor-wait disabled:opacity-60">{busy ? "Please wait…" : mode === "in" ? "Sign in" : "Create account"}<ArrowRight className="size-4"/></button>
-          </form>}
+          </form>
 
-          <p className="mt-5 text-center text-[11px] text-slate-500">{mode === "up" ? "Already have an account?" : "New to Tradeclass?"} <button type="button" onClick={() => { setMode(mode === "up" ? "in" : "up"); setSent(false); }} className="font-bold text-white hover:text-[#edbd58]">{mode === "up" ? "Sign in" : "Create an account"}</button></p>
+          <p className="mt-5 text-center text-[11px] text-slate-500">{mode === "up" ? "Already have an account?" : "New to Tradeclass?"} <button type="button" onClick={() => setMode(mode === "up" ? "in" : "up")} className="font-bold text-white hover:text-[#edbd58]">{mode === "up" ? "Sign in" : "Create an account"}</button></p>
           <p className="mt-5 flex items-center justify-center gap-1.5 text-[10px] text-slate-600"><LockKeyhole className="size-3"/> Your credentials are handled securely. Practice balances are simulated.</p>
         </section>
       </div>

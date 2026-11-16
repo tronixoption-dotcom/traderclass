@@ -101,7 +101,7 @@ export async function startStkDeposit(userId: string, rawAmount: number, rawPhon
       TransactionType: 'CustomerPayBillOnline', Amount: kes, PartyA: phone, PartyB: shortcode,
       PhoneNumber: phone, CallBackURL: callback,
       AccountReference: `GM${String(tx.id).replaceAll('-', '').slice(0, 10)}`,
-      TransactionDesc: 'Gold Grove wallet deposit',
+      TransactionDesc: 'Tradeclass wallet deposit',
     }, bearer);
     const checkoutId = result['CheckoutRequestID'];
     if (typeof checkoutId !== 'string') throw new Error('Daraja did not return a checkout request ID');
@@ -126,6 +126,10 @@ export async function startB2cWithdrawal(userId: string, rawAmount: number, rawP
   const bearer = await token();
   const db = database();
   await requirePaymentsEnabled(db, 'withdrawal');
+  const { count: confirmedDeposits, error: activationError } = await db.from('mpesa_transactions').select('id', { count: 'exact', head: true })
+    .eq('user_id', userId).eq('kind', 'deposit').eq('status', 'completed');
+  if (activationError) throw new Error('Could not check account activation');
+  if ((confirmedDeposits ?? 0) < 1) throw new Error('Make one successful M-Pesa deposit to activate withdrawals');
   const { count, error: countError } = await db.from('mpesa_transactions').select('id', { count: 'exact', head: true })
     .eq('user_id', userId).eq('kind', 'withdrawal').eq('status', 'processing');
   if (countError) throw new Error('Could not check pending withdrawals');
@@ -138,7 +142,7 @@ export async function startB2cWithdrawal(userId: string, rawAmount: number, rawP
       SecurityCredential: credential,
       CommandID: 'BusinessPayment', Amount: kes,
       PartyA: shortcode, PartyB: phone,
-      Remarks: 'Gold Grove wallet withdrawal',
+      Remarks: 'Tradeclass wallet withdrawal',
       QueueTimeOutURL: queueUrl,
       ResultURL: resultUrl,
       Occasion: txId,
@@ -159,12 +163,13 @@ export async function startB2cWithdrawal(userId: string, rawAmount: number, rawP
 
 export async function getWallet(userId: string) {
   const db = database();
-  const [wallet, transactions] = await Promise.all([
+  const [wallet, transactions, deposits] = await Promise.all([
     db.from('mpesa_wallets').select('balance_kes').eq('user_id', userId).maybeSingle(),
     db.from('mpesa_transactions').select('id,kind,status,amount_kes,phone_number,mpesa_receipt_number,created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
+    db.from('mpesa_transactions').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('kind', 'deposit').eq('status', 'completed'),
   ]);
-  if (wallet.error || transactions.error) throw new Error('Could not load the M-Pesa wallet');
-  return { balanceKes: wallet.data?.balance_kes ?? 0, transactions: transactions.data ?? [] };
+  if (wallet.error || transactions.error || deposits.error) throw new Error('Could not load the M-Pesa wallet');
+  return { balanceKes: wallet.data?.balance_kes ?? 0, isActivated: (deposits.count ?? 0) > 0, transactions: transactions.data ?? [] };
 }
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });

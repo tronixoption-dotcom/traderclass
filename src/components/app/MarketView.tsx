@@ -364,7 +364,7 @@ function AccountPicker() {
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link to="/deposit" className="gap-2.5 py-2 text-[13px] font-medium text-primary">
-            <Wallet className="size-4" /> Deposit KES
+            <Wallet className="size-4" /> Deposit
           </Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
