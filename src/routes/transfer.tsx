@@ -9,7 +9,7 @@ import { MIN_TRANSFER, TRANSFER_PRESETS, validateTransfer, type AccountId } from
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/transfer")({
-  head: () => pageHead("Transfer", "Move practice funds between your USD and USDT accounts."),
+  head: () => pageHead("Transfer", "Move demo funds between your USD and USDT accounts."),
   component: TransferPage,
 });
 
@@ -35,7 +35,7 @@ function TransferPage() {
       <div className="px-[16.5px]">
         <div className="pt-[20px]">
           <h2 className="text-[14.5px] font-medium leading-[19px]">Transfer between accounts</h2>
-          <p className="mt-[2px] text-[12.5px] leading-[15px] text-muted-foreground">Move practice funds between your USD and USDT accounts</p>
+          <p className="mt-[2px] text-[12.5px] leading-[15px] text-muted-foreground">Move demo funds between your USD and USDT accounts</p>
         </div>
         <div className="mt-[22px] mb-[8px] text-[13.5px] font-medium leading-[17px]">From</div>
         <AccountSelect value={from} onChange={pickFrom} label="From account" />
@@ -73,7 +73,7 @@ function TransferPage() {
               toast.error(e);
               return;
             }
-            toast.success(`$${amount.toFixed(2)} moved to Practice ${to} Account`);
+            toast.success(`$${amount.toFixed(2)} moved to Demo ${to} Account`);
           }}
           className="mt-[17px] h-[53px] w-full rounded-full bg-primary text-[15.5px] font-bold text-primary-foreground"
         >

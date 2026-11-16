@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/profile")({
-  head: () => pageHead("Profile", "Your practice trader username, ID and email."),
+  head: () => pageHead("Profile", "Your Tradeclass profile and account details."),
   component: ProfilePage,
 });
 
@@ -22,7 +22,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function ProfilePage() {
-  const { state, setName, hydrated, user, profile } = useStore();
+  const { state, setName, hydrated, user, profile, accountMode } = useStore();
   const [editing, setEditing] = useState(false);
   const [name, set] = useState("");
   const username = profile?.username ?? state.name;
@@ -65,7 +65,7 @@ function ProfilePage() {
           )}
         </Row>
         <Row label="Account">
-          <span className="text-[15.5px] font-semibold text-primary">Practice</span>
+          <span className="text-[15.5px] font-semibold text-primary">{accountMode === 'real' ? 'Live USDT' : 'Demo'}</span>
         </Row>
       </div>
 

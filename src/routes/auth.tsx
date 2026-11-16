@@ -33,7 +33,7 @@ export const Route = createFileRoute("/auth")({
       ...(redirect ? { redirect } : {}),
     };
   },
-  head: () => ({ meta: [{ title: "Sign in or create an account · Tradeclass" }, { name: "description", content: "Access your private Tradeclass practice workspace." }] }),
+  head: () => ({ meta: [{ title: "Sign in or create an account · Tradeclass" }, { name: "description", content: "Access your Tradeclass demo and live trading accounts." }] }),
   component: AuthPage,
 });
 
@@ -116,8 +116,8 @@ function AuthPage() {
         <section className="hidden max-w-[540px] lg:block">
           <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.2em] text-[#edbd58]"><span className="size-1.5 rounded-full bg-emerald-400"/> Secure market access</div>
           <h1 className="mt-6 text-6xl font-extrabold leading-[1.03] tracking-[-.05em]">Trade with <span className="text-[#edbd58]">clarity.</span><br/>Move with confidence.</h1>
-          <p className="mt-6 max-w-[430px] text-base leading-7 text-slate-400">A focused practice workspace built for market exploration, deliberate decisions and steady learning.</p>
-          <ul className="mt-8 space-y-4 text-sm text-slate-200"><li className="flex items-center gap-3"><ShieldCheck className="size-4 text-emerald-300"/> A private customer session</li><li className="flex items-center gap-3"><ShieldCheck className="size-4 text-emerald-300"/> Your practice activity in one place</li><li className="flex items-center gap-3"><ShieldCheck className="size-4 text-emerald-300"/> Simulated funds for practice</li></ul>
+          <p className="mt-6 max-w-[430px] text-base leading-7 text-slate-400">A focused trading workspace for market access, account activity and secure funding controls.</p>
+          <ul className="mt-8 space-y-4 text-sm text-slate-200"><li className="flex items-center gap-3"><ShieldCheck className="size-4 text-emerald-300"/> A private customer session</li><li className="flex items-center gap-3"><ShieldCheck className="size-4 text-emerald-300"/> Demo and live USDT accounts</li><li className="flex items-center gap-3"><ShieldCheck className="size-4 text-emerald-300"/> Deposits and withdrawals in your account</li></ul>
         </section>
 
         <section className="mx-auto w-full max-w-[490px] rounded-[24px] border border-white/10 bg-[#0b1429] p-5 shadow-[0_24px_90px_rgba(0,0,0,.3)] sm:p-8">
@@ -140,7 +140,7 @@ function AuthPage() {
           </form>
 
           <p className="mt-5 text-center text-[11px] text-slate-500">{mode === "up" ? "Already have an account?" : "New to Tradeclass?"} <button type="button" onClick={() => setMode(mode === "up" ? "in" : "up")} className="font-bold text-white hover:text-[#edbd58]">{mode === "up" ? "Sign in" : "Create an account"}</button></p>
-          <p className="mt-5 flex items-center justify-center gap-1.5 text-[10px] text-slate-600"><LockKeyhole className="size-3"/> Your credentials are handled securely. Practice balances are simulated.</p>
+          <p className="mt-5 flex items-center justify-center gap-1.5 text-[10px] text-slate-600"><LockKeyhole className="size-3"/> Your credentials are handled securely. Demo balances are simulated.</p>
         </section>
       </div>
     </main>

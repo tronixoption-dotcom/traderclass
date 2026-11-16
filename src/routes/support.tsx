@@ -22,12 +22,12 @@ export const Route = createFileRoute("/support")({
 
 type Topic = { q: string; a: string; keys: string[] };
 const TOPICS: Topic[] = [
-  { q: "Are deposits and trades real?", keys: ["real", "money", "deposit", "withdraw", "cash"], a: "Wallet deposits and withdrawals are real and use the payment methods shown in your account. Crypto deposits are credited after staff verify the transaction on the selected network. Trades and market prices in the trading workspace are simulated and do not use wallet funds." },
+  { q: "Are deposits and trades real?", keys: ["real", "money", "deposit", "withdraw", "cash"], a: "Deposits and withdrawals use the payment methods in your account. Crypto deposits are credited after staff verify the transaction on the selected network; withdrawal requests reserve the amount until paid or rejected. Demo balances are simulated. Live USDT contracts use OKX spot prices and settle inside Tradeclass; they do not place orders on your OKX account." },
   { q: "How does a trade work?", keys: ["trade", "buy", "sell", "how", "work"], a: "Pick a market, a duration and a stake, then tap BUY if you think the price will be higher when time runs out, or SELL if you think it will be lower." },
   { q: "How much does a win pay?", keys: ["pay", "payout", "win", "profit", "8.50"], a: `A winning trade pays your stake × ${PAYOUT_MULTIPLIER} (a $5 stake pays $8.50). A losing trade loses the stake. If the price is exactly the same, your stake is returned.` },
-  { q: "Are the prices real?", keys: ["price", "chart", "real", "market"], a: "No. Prices are simulated to behave like real markets so you can practice. Don't use them for real trading decisions." },
-  { q: "I ran out of practice money", keys: ["ran out", "balance", "funds", "zero", "empty", "top"], a: `Practice balances are separate from your wallet. Log out to start a fresh practice account with ${STARTING_BALANCE.toLocaleString()} in each balance.` },
-  { q: "What does the Robot do?", keys: ["robot", "bot", "auto", "copy"], a: "It places practice trades for you automatically using a simple rule you choose. It is for learning only and does not predict the market." },
+  { q: "Are the prices real?", keys: ["price", "chart", "real", "market"], a: "Demo account prices are simulated. Supported live crypto markets use OKX spot prices, and Tradeclass settles the timed contract using the completed price candle. Live trading is not an OKX order or a promise of profit." },
+  { q: "I ran out of demo funds", keys: ["ran out", "balance", "funds", "zero", "empty", "top"], a: `Demo balances are separate from your funded wallet. A new demo profile starts with ${STARTING_BALANCE.toLocaleString()} in each demo balance.` },
+  { q: "What does the Robot do?", keys: ["robot", "bot", "auto", "copy"], a: "The Robot can place demo trades or, when enabled, live USDT trades on supported OKX crypto markets. Live orders use your Tradeclass USDT balance and settle inside Tradeclass against OKX prices; the robot does not access your OKX account. Set a stop loss and take profit, and monitor it while running." },
   { q: "How do the chart tools work?", keys: ["draw", "tool", "line", "fib", "ruler", "magnet"], a: "Pick a tool on the left of the chart, then tap two points on the chart. Tap the bin icon at the bottom of the tools to remove your drawings." },
 ];
 
@@ -44,7 +44,7 @@ function answer(text: string): string {
       best = topic;
     }
   }
-  return best ? best.a : "I'm the practice support assistant. I can answer questions about trades, payouts, the chart, the robot and practice funds. Try one of the questions above.";
+  return best ? best.a : "I'm the Tradeclass support assistant. I can answer questions about accounts, funding, trades, payouts, charts and the Robot. Try one of the questions above.";
 }
 
 function SupportPage() {
@@ -98,7 +98,7 @@ function SupportTickets() {
 }
 
 function Chat() {
-  const [msgs, setMsgs] = useState<Msg[]>([{ from: "bot", text: "Hi! I'm the Goldmarket practice assistant. How can I help?" }]);
+  const [msgs, setMsgs] = useState<Msg[]>([{ from: "bot", text: "Welcome to Tradeclass support. How can I help?" }]);
   const [text, setText] = useState("");
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => end.current?.scrollIntoView({ behavior: "smooth" }), [msgs]);

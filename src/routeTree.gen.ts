@@ -25,6 +25,9 @@ import { Route as TradesRouteImport } from './routes/trades'
 import { Route as TransactionsRouteImport } from './routes/transactions'
 import { Route as TransferRouteImport } from './routes/transfer'
 import { Route as WithdrawRouteImport } from './routes/withdraw'
+import { Route as ApiDarajaB2cQueueRouteImport } from './routes/api/daraja/b2c-queue'
+import { Route as ApiDarajaB2cResultRouteImport } from './routes/api/daraja/b2c-result'
+import { Route as ApiPublicMpesaCallbackRouteImport } from './routes/api/public/mpesa/callback'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -106,6 +109,21 @@ const WithdrawRoute = WithdrawRouteImport.update({
   path: '/withdraw',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDarajaB2cQueueRoute = ApiDarajaB2cQueueRouteImport.update({
+  id: '/api/daraja/b2c-queue',
+  path: '/api/daraja/b2c-queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDarajaB2cResultRoute = ApiDarajaB2cResultRouteImport.update({
+  id: '/api/daraja/b2c-result',
+  path: '/api/daraja/b2c-result',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicMpesaCallbackRoute = ApiPublicMpesaCallbackRouteImport.update({
+  id: '/api/public/mpesa/callback',
+  path: '/api/public/mpesa/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -124,6 +142,9 @@ export interface FileRoutesByFullPath {
   '/transactions': typeof TransactionsRoute
   '/transfer': typeof TransferRoute
   '/withdraw': typeof WithdrawRoute
+  '/api/daraja/b2c-queue': typeof ApiDarajaB2cQueueRoute
+  '/api/daraja/b2c-result': typeof ApiDarajaB2cResultRoute
+  '/api/public/mpesa/callback': typeof ApiPublicMpesaCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -142,6 +163,9 @@ export interface FileRoutesByTo {
   '/transactions': typeof TransactionsRoute
   '/transfer': typeof TransferRoute
   '/withdraw': typeof WithdrawRoute
+  '/api/daraja/b2c-queue': typeof ApiDarajaB2cQueueRoute
+  '/api/daraja/b2c-result': typeof ApiDarajaB2cResultRoute
+  '/api/public/mpesa/callback': typeof ApiPublicMpesaCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -161,6 +185,9 @@ export interface FileRoutesById {
   '/transactions': typeof TransactionsRoute
   '/transfer': typeof TransferRoute
   '/withdraw': typeof WithdrawRoute
+  '/api/daraja/b2c-queue': typeof ApiDarajaB2cQueueRoute
+  '/api/daraja/b2c-result': typeof ApiDarajaB2cResultRoute
+  '/api/public/mpesa/callback': typeof ApiPublicMpesaCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -181,6 +208,9 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/transfer'
     | '/withdraw'
+    | '/api/daraja/b2c-queue'
+    | '/api/daraja/b2c-result'
+    | '/api/public/mpesa/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -199,6 +229,9 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/transfer'
     | '/withdraw'
+    | '/api/daraja/b2c-queue'
+    | '/api/daraja/b2c-result'
+    | '/api/public/mpesa/callback'
   id:
     | '__root__'
     | '/'
@@ -217,6 +250,9 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/transfer'
     | '/withdraw'
+    | '/api/daraja/b2c-queue'
+    | '/api/daraja/b2c-result'
+    | '/api/public/mpesa/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -236,6 +272,9 @@ export interface RootRouteChildren {
   TransactionsRoute: typeof TransactionsRoute
   TransferRoute: typeof TransferRoute
   WithdrawRoute: typeof WithdrawRoute
+  ApiDarajaB2cQueueRoute: typeof ApiDarajaB2cQueueRoute
+  ApiDarajaB2cResultRoute: typeof ApiDarajaB2cResultRoute
+  ApiPublicMpesaCallbackRoute: typeof ApiPublicMpesaCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -352,6 +391,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WithdrawRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/daraja/b2c-queue': {
+      id: '/api/daraja/b2c-queue'
+      path: '/api/daraja/b2c-queue'
+      fullPath: '/api/daraja/b2c-queue'
+      preLoaderRoute: typeof ApiDarajaB2cQueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/daraja/b2c-result': {
+      id: '/api/daraja/b2c-result'
+      path: '/api/daraja/b2c-result'
+      fullPath: '/api/daraja/b2c-result'
+      preLoaderRoute: typeof ApiDarajaB2cResultRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/mpesa/callback': {
+      id: '/api/public/mpesa/callback'
+      path: '/api/public/mpesa/callback'
+      fullPath: '/api/public/mpesa/callback'
+      preLoaderRoute: typeof ApiPublicMpesaCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -372,6 +432,9 @@ const rootRouteChildren: RootRouteChildren = {
   TransactionsRoute: TransactionsRoute,
   TransferRoute: TransferRoute,
   WithdrawRoute: WithdrawRoute,
+  ApiDarajaB2cQueueRoute: ApiDarajaB2cQueueRoute,
+  ApiDarajaB2cResultRoute: ApiDarajaB2cResultRoute,
+  ApiPublicMpesaCallbackRoute: ApiPublicMpesaCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

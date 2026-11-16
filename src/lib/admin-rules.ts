@@ -7,7 +7,7 @@ export const DEFAULT_SETTINGS = { trading_enabled: true, robot_enabled: true, de
 export type SiteSettings = typeof DEFAULT_SETTINGS;
 export function canAccess(roles: StaffRole[], area: string) {
   if (roles.includes('admin')) return true;
-  if (roles.includes('agent')) return ['Clients','Deposits','Withdrawals','Trades'].includes(area);
+  if (roles.includes('agent')) return ['Clients','Trades'].includes(area);
   return roles.includes('support') && area === 'Support';
 }
 export function entryClick(count: number) { return count + 1 >= ADMIN_ENTRY_CLICKS ? { count: 0, open: true } : { count: count + 1, open: false }; }

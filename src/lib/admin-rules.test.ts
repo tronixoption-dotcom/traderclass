@@ -15,7 +15,7 @@ describe('admin rules', () => {
   });
   it('opens only on the seventh logo click', () => { let count=0; for(let i=0;i<6;i++){const next=entryClick(count);expect(next.open).toBe(false);count=next.count;}expect(entryClick(count)).toEqual({count:0,open:true}); });
   it('admins can manage teams and settings', () => { expect(canAccess(['admin'],'Teams')).toBe(true);expect(canAccess(['admin'],'Settings')).toBe(true); });
-  it('agents cannot manage settings or support', () => {expect(canAccess(['agent'],'Clients')).toBe(true);expect(canAccess(['agent'],'Settings')).toBe(false);expect(canAccess(['agent'],'Support')).toBe(false);});
+  it('agents cannot manage settings, funding or support', () => {expect(canAccess(['agent'],'Clients')).toBe(true);expect(canAccess(['agent'],'Settings')).toBe(false);expect(canAccess(['agent'],'Deposits')).toBe(false);expect(canAccess(['agent'],'Withdrawals')).toBe(false);expect(canAccess(['agent'],'Support')).toBe(false);});
   it('support only accesses support', () => {expect(canAccess(['support'],'Support')).toBe(true);expect(canAccess(['support'],'Clients')).toBe(false);});
   it('disabling trading blocks manual and robot trades',()=>{const s={...DEFAULT_SETTINGS,trading_enabled:false};expect(actionAllowed(s,'trade')).toBe(false);expect(actionAllowed(s,'robot')).toBe(false);});
   it('disabling robot preserves manual trading',()=>{const s={...DEFAULT_SETTINGS,robot_enabled:false};expect(actionAllowed(s,'robot')).toBe(false);expect(actionAllowed(s,'trade')).toBe(true);});

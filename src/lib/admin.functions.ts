@@ -18,17 +18,19 @@ export const getAdminData=createServerFn({method:'POST'}).middleware([requireSup
   const check=<T,>(r:{data:T|null;error:unknown})=>{if(r.error)throw new Error('Could not load admin records');return r.data;};
   const profiles=agent?check(await supabase.from('profiles').select('id,username,referral_code,created_at').order('created_at',{ascending:false})):[];
   const accounts=agent?check(await supabase.from('practice_accounts').select('*')):[];
+  const liveTrades=agent?check(await supabase.from('real_trades').select('*').order('created_at',{ascending:false}).limit(500)):[];
+  const liveWallets=admin?check(await supabase.from('funding_wallets').select('user_id,asset,balance').eq('asset','USDT')):[];
   const tickets=support?check(await supabase.from('support_tickets').select('*').order('created_at',{ascending:false})):[];
   const team=admin?check(await supabase.from('user_roles').select('*')):[];
   const invitations=admin?check(await supabase.from('staff_invitations').select('*')):[];
   const audit=admin?check(await supabase.from('admin_audit').select('*').order('created_at',{ascending:false}).limit(30)):[];
   const settings=check(await supabase.from('site_settings').select('*').maybeSingle())??DEFAULT_SETTINGS;
-  return {roles,userId,profiles:profiles??[],accounts:accounts??[],tickets:tickets??[],team:team??[],invitations:invitations??[],audit:audit??[],settings};
+  return {roles,userId,profiles:profiles??[],accounts:accounts??[],liveTrades:liveTrades??[],liveWallets:liveWallets??[],tickets:tickets??[],team:team??[],invitations:invitations??[],audit:audit??[],settings};
 });
 export const saveAdminSettings=createServerFn({method:'POST'}).middleware([requireSupabaseAuth]).inputValidator((d:unknown)=>z.object({trading_enabled:z.boolean(),robot_enabled:z.boolean(),deposits_enabled:z.boolean(),withdrawals_enabled:z.boolean(),real_trading_enabled:z.boolean(),real_min_stake:z.number().positive().max(100000),real_max_stake:z.number().positive().max(100000),deposit_fee_percent:z.number().min(0).max(20),withdrawal_fee_percent:z.number().min(0).max(20),announcement:z.string().trim().max(240)}).refine(v=>v.real_max_stake>=v.real_min_stake,'Maximum real stake must be at least the minimum').parse(d)).handler(async({data,context})=>{
   await requireStaff(context.supabase,context.userId,context.claims,true);
   const {error}=await context.supabase.from('site_settings').upsert({id:true,...data,updated_at:new Date().toISOString()});if(error)throw new Error('Settings could not be saved');
-  await context.supabase.from('admin_audit').insert({actor_id:context.userId,action:'Updated practice site settings'});return {ok:true};
+  await context.supabase.from('admin_audit').insert({actor_id:context.userId,action:'Updated Tradeclass trading and funding settings'});return {ok:true};
 });
 export const manageTeam=createServerFn({method:'POST'}).middleware([requireSupabaseAuth]).inputValidator((d:unknown)=>z.discriminatedUnion('action',[
  z.object({action:z.literal('invite'),email:z.string().trim().email(),role:roleSchema}),z.object({action:z.literal('role'),userId:z.string().uuid(),role:roleSchema}),z.object({action:z.literal('revoke'),userId:z.string().uuid()}),z.object({action:z.literal('cancel'),email:z.string().email()})]).parse(d)).handler(async({data,context})=>{

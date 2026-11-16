@@ -15,7 +15,7 @@ function serviceDatabase() {
 
 const tradeInput = z.object({
   requestId: z.string().uuid(), symbol: z.string().max(16), direction: z.enum(['buy', 'sell']),
-  stake: z.number().positive().max(100000), duration: z.number().int(),
+  stake: z.number().positive().max(100000), duration: z.number().int(), byRobot: z.boolean().optional().default(false),
 });
 
 export const getRealTradingData = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
@@ -37,7 +37,7 @@ export const placeRealTrade = createServerFn({ method: 'POST' }).middleware([req
   const { data: tradeId, error } = await db.rpc('open_real_trade', {
     p_user_id: context.userId, p_symbol: data.symbol, p_inst_id: instId, p_direction: data.direction,
     p_stake: data.stake, p_duration_seconds: data.duration, p_entry_price: quote.price,
-    p_entry_price_ts: quote.timestamp, p_request_id: data.requestId,
+    p_entry_price_ts: quote.timestamp, p_request_id: data.requestId, p_by_robot: data.byRobot,
   });
   if (error || !tradeId) throw new Error(error?.message || 'Could not open the real trade');
   const { data: trade, error: tradeError } = await db.from('real_trades').select('*').eq('id', tradeId).eq('user_id', context.userId).single();

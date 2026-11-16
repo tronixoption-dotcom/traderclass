@@ -24,6 +24,6 @@ export function PageHeader({ title, right, compact, className }: { title: string
   );
 }
 
-export function PracticeNote({ children, className }: { children: ReactNode; className?: string }) {
+export function InfoNote({ children, className }: { children: ReactNode; className?: string }) {
   return <p className={cn("text-center text-[11.5px] leading-[17px] text-muted-foreground", className)}>{children}</p>;
 }

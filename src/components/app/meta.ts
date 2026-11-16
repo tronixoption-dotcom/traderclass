@@ -1,5 +1,5 @@
 export function pageHead(title: string, description: string) {
-  const t = `${title} — Goldmarket Practice Trading`;
+  const t = `${title} — Tradeclass Trading`;
   return {
     meta: [
       { title: t },

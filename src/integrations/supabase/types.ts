@@ -33,9 +33,9 @@ export type Database = {
         Relationships: []
       }
       real_trades: {
-        Row: { id: string; request_id: string; user_id: string; symbol: string; inst_id: string; direction: string; asset: string; stake: number; entry_price: number; entry_price_ts: number; duration_seconds: number; payout_multiplier: number; reserved_profit: number; expires_at: string; status: string; close_price: number | null; close_candle_ts: number | null; payout: number; settled_at: string | null; created_at: string }
-        Insert: { id?: string; request_id: string; user_id: string; symbol: string; inst_id: string; direction: string; asset?: string; stake: number; entry_price: number; entry_price_ts: number; duration_seconds: number; payout_multiplier?: number; reserved_profit: number; expires_at: string; status?: string; close_price?: number | null; close_candle_ts?: number | null; payout?: number; settled_at?: string | null; created_at?: string }
-        Update: { id?: string; request_id?: string; user_id?: string; symbol?: string; inst_id?: string; direction?: string; asset?: string; stake?: number; entry_price?: number; entry_price_ts?: number; duration_seconds?: number; payout_multiplier?: number; reserved_profit?: number; expires_at?: string; status?: string; close_price?: number | null; close_candle_ts?: number | null; payout?: number; settled_at?: string | null; created_at?: string }
+        Row: { id: string; request_id: string; user_id: string; symbol: string; inst_id: string; direction: string; asset: string; stake: number; entry_price: number; entry_price_ts: number; duration_seconds: number; payout_multiplier: number; reserved_profit: number; expires_at: string; status: string; close_price: number | null; close_candle_ts: number | null; payout: number; settled_at: string | null; by_robot: boolean; created_at: string }
+        Insert: { id?: string; request_id: string; user_id: string; symbol: string; inst_id: string; direction: string; asset?: string; stake: number; entry_price: number; entry_price_ts: number; duration_seconds: number; payout_multiplier?: number; reserved_profit: number; expires_at: string; status?: string; close_price?: number | null; close_candle_ts?: number | null; payout?: number; settled_at?: string | null; by_robot?: boolean; created_at?: string }
+        Update: { id?: string; request_id?: string; user_id?: string; symbol?: string; inst_id?: string; direction?: string; asset?: string; stake?: number; entry_price?: number; entry_price_ts?: number; duration_seconds?: number; payout_multiplier?: number; reserved_profit?: number; expires_at?: string; status?: string; close_price?: number | null; close_candle_ts?: number | null; payout?: number; settled_at?: string | null; by_robot?: boolean; created_at?: string }
         Relationships: []
       }
       real_trading_reserves: {
@@ -256,7 +256,7 @@ export type Database = {
       request_funding_deposit: { Args: { p_method_id: string; p_amount: number; p_reference?: string }; Returns: string }
       request_funding_withdrawal: { Args: { p_method_id: string; p_amount: number; p_destination: string }; Returns: string }
       review_funding_transaction: { Args: { p_transaction_id: string; p_approve: boolean; p_note?: string }; Returns: undefined }
-      open_real_trade: { Args: { p_user_id: string; p_symbol: string; p_inst_id: string; p_direction: string; p_stake: number; p_duration_seconds: number; p_entry_price: number; p_entry_price_ts: number; p_request_id: string }; Returns: string }
+      open_real_trade: { Args: { p_user_id: string; p_symbol: string; p_inst_id: string; p_direction: string; p_stake: number; p_duration_seconds: number; p_entry_price: number; p_entry_price_ts: number; p_request_id: string; p_by_robot?: boolean }; Returns: string }
       settle_real_trade: { Args: { p_trade_id: string; p_close_price: number; p_close_candle_ts: number }; Returns: string }
       adjust_real_trading_reserve: { Args: { p_actor_id: string; p_delta: number; p_note: string }; Returns: number }
       has_role: {

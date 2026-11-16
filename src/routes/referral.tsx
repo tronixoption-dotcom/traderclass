@@ -9,7 +9,7 @@ import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/referral")({
-  head: () => pageHead("Referral program", "Invite friends to practice trading with you on Goldmarket."),
+  head: () => pageHead("Referral program", "Invite friends to join Tradeclass."),
   component: ReferralPage,
 });
 
@@ -47,8 +47,8 @@ function ReferralPage() {
       <PageHeader title="Referral program" compact className="bg-muted" />
       <div className="space-y-[17px] px-[13px] pt-[12px]">
         <Card className="px-[17px] py-[16px] text-center">
-          <h2 className="text-[17px] font-bold leading-[22px]">Invite friends, practice together</h2>
-          <p className="mt-[6px] text-[13px] leading-[20px] text-muted-foreground">Share your referral link so friends can open their own practice account</p>
+          <h2 className="text-[17px] font-bold leading-[22px]">Invite friends to Tradeclass</h2>
+          <p className="mt-[6px] text-[13px] leading-[20px] text-muted-foreground">Share your referral link so friends can create their own account</p>
         </Card>
 
         {hydrated && !user ? (
@@ -108,13 +108,13 @@ function ReferralPage() {
           <ol className="mt-[8px] list-decimal space-y-[4px] pl-[22px] text-[13px] leading-[22px]">
             <li>Share your unique referral link or code with friends.</li>
             <li>When they sign up using your link, they're linked to your account.</li>
-            <li>They get their own practice balance to learn with.</li>
-            <li>You both practice with virtual money — nothing to pay or withdraw.</li>
+            <li>They receive access to their own demo account.</li>
+            <li>Live USDT trading and wallet funding are available separately when enabled.</li>
           </ol>
         </Card>
 
         <p className="flex items-center justify-center gap-[7px] pt-[4px] text-[12px] text-muted-foreground">
-          <InfoDot tone="amber" /> Referrals are practice only, with no cash rewards
+          <InfoDot tone="amber" /> The referral program currently has no cash rewards
         </p>
       </div>
     </div>

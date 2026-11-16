@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { pageHead } from "@/components/app/meta";
 
 export const Route = createFileRoute("/community")({
-  head: () => pageHead("Join our community", "Goldmarket community channels."),
+  head: () => pageHead("Join our community", "Tradeclass community channels."),
   component: CommunityPage,
 });
 

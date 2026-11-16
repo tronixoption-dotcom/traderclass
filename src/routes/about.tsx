@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PageHeader, PracticeNote } from "@/components/app/PageHeader";
+import { PageHeader, InfoNote } from "@/components/app/PageHeader";
 import { Logo } from "@/components/app/icons";
 import { pageHead } from "@/components/app/meta";
 
 export const Route = createFileRoute("/about")({
-  head: () => pageHead("About", "Tradeclass practice trading and funding wallet information."),
+  head: () => pageHead("About", "Tradeclass account, market and funding information."),
   component: AboutPage,
 });
 
@@ -15,11 +15,11 @@ function AboutPage() {
       <div className="space-y-5 px-5 text-lg">
         <Logo className="h-24" />
         <p className="text-muted-foreground">
-          Tradeclass includes a practice trading workspace and a separate wallet for deposits and withdrawals through the payment methods shown in your account.
+          Tradeclass provides demo accounts and a separately funded live USDT account. Deposits and withdrawals are requested through the payment methods available in your account.
         </p>
-        <PracticeNote>
-          Trade execution and market prices are simulated. Wallet deposits and withdrawals are real transactions; crypto transfers require network and transaction review, and exchange payouts are processed by staff. Never send funds until you have checked the selected asset, network and receiving address.
-        </PracticeNote>
+        <InfoNote>
+          Demo account balances and trades are simulated. Live USDT timed contracts use OKX spot prices and settle inside Tradeclass; they do not place orders on an OKX account. Deposits are credited after staff review, while withdrawal funds are reserved until the request is paid or rejected. Always check the asset, network and receiving address before sending crypto.
+        </InfoNote>
       </div>
     </div>
   );

@@ -72,7 +72,7 @@ const links = [
   { to: "/transactions", label: "Transactions", icon: <List className={ic} strokeWidth={2.2} /> },
   { to: "/referral", label: "Referral program", icon: <GiftFill /> },
   { to: "/trades", label: "Trade history", icon: <History className={ic} strokeWidth={2.2} /> },
-  { to: "/copy-trading", label: "Copy trading", icon: <CopyFill /> },
+  { to: "/copy-trading", label: "Strategy presets", icon: <CopyFill /> },
   { to: "/community", label: "Join our community", icon: <PlaneFill /> },
 ] as const;
 const after = [
@@ -114,7 +114,7 @@ function AccountPage() {
         </div>
       </div>
       <div className="mx-[16px] flex h-[43px] items-center justify-between border-b border-border px-[4.5px]">
-        <span className="text-[14.5px] text-muted-foreground">Balance</span>
+        <span className="text-[14.5px] text-muted-foreground">Wallet balance</span>
         <span className="tabular text-[16.5px] font-bold">{fundingBalances ? formatMoney(fundingBalances[state.active], state.active) : "—"}</span>
       </div>
       <div className="mx-[20px] mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground"><span>USD {fundingBalances?.USD.toLocaleString() ?? "—"}</span><span>USDT {fundingBalances?.USDT.toLocaleString() ?? "—"}</span><span>KES {fundingBalances?.KES.toLocaleString() ?? "—"}</span></div>
@@ -153,8 +153,8 @@ function AccountPage() {
               <AlertDialogTitle>Log out?</AlertDialogTitle>
               <AlertDialogDescription>
                 {user
-                  ? "Your practice account is saved online. Sign in again any time to pick up where you left off."
-                  : `You're not signed in, so this account is only on this device. Logging out clears your trades and history and starts a fresh account with ${STARTING_BALANCE.toLocaleString()} in each balance.`}
+                  ? "Your demo account is saved online. Sign in again any time to continue where you left off."
+                  : `You're not signed in, so this account is only on this device. Logging out clears this demo activity and starts a fresh demo account with ${STARTING_BALANCE.toLocaleString()} in each balance.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -166,7 +166,7 @@ function AccountPage() {
                     toast.success("Logged out");
                   } else {
                     reset();
-                    toast.success("Logged out. A fresh practice account is ready.");
+                    toast.success("Logged out. A fresh demo account is ready.");
                   }
                 }}
               >

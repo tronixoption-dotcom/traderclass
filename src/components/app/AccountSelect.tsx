@@ -46,7 +46,7 @@ export function AccountSelect({
       >
         <AccountIcon account={value} />
         <span className="ml-[10.5px] flex-1">
-          <span className="block text-[13.5px] font-medium leading-[17px]">Practice {value} Account</span>
+          <span className="block text-[13.5px] font-medium leading-[17px]">Demo {value} Account</span>
           <span className="tabular block text-[11.5px] leading-[15px] text-muted-foreground">{formatMoney(state.balances[value], value)}{suffix}</span>
         </span>
         <Chevron className={cn(chevron === "right" ? "size-[20px]" : "size-[24px]", "text-muted-foreground")} strokeWidth={1.6} />
@@ -67,7 +67,7 @@ export function AccountSelect({
             >
               <AccountIcon account={id} />
               <span className="ml-[10.5px] flex-1">
-                <span className="block text-[13.5px] font-medium leading-[17px]">Practice {id} Account</span>
+                <span className="block text-[13.5px] font-medium leading-[17px]">Demo {id} Account</span>
                 <span className="tabular block text-[11.5px] leading-[15px] text-muted-foreground">{formatMoney(state.balances[id], id)}</span>
               </span>
               {id === value && <Check className="size-[18px] text-primary" strokeWidth={2.2} />}
