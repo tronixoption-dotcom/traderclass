@@ -1,0 +1,298 @@
+/*
+ * Tailwind v4 entry: config lives here, with no tailwind.config.js or PostCSS plugin.
+ * Keep every @import in this top block. Web fonts load via <link> in src/routes/__root.tsx.
+ */
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Roboto", ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-sell: var(--sell);
+  --color-sell-deep: var(--sell-deep);
+  --color-buy: var(--buy);
+  --color-buy-deep: var(--buy-deep);
+  --color-trade-foreground: var(--trade-foreground);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-amber: var(--amber);
+  --color-tv-frame: var(--tv-frame);
+  --color-tv-foreground: var(--tv-foreground);
+  --color-status-open: var(--status-open);
+  --color-status-open-dot: var(--status-open-dot);
+  --color-status-delay: var(--status-delay);
+  --color-status-delay-fg: var(--status-delay-fg);
+  --color-nav-muted: var(--nav-muted);
+  --color-candle-up: var(--candle-up);
+  --color-candle-down: var(--candle-down);
+  --color-tether: var(--tether);
+  --color-google: var(--google);
+  --color-google-border: var(--google-border);
+  --color-google-foreground: var(--google-foreground);
+  --color-signal: var(--signal);
+  --color-signal-ring: var(--signal-ring);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-nav: var(--nav);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.875rem;
+  --background: #ffffff;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --primary-soft: #e3f1fe;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #111827;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --accent: #e3f1fe;
+  --accent-foreground: #111827;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --destructive-soft: #fee2e2;
+  --success: #16a34a;
+  --success-foreground: #ffffff;
+  --success-soft: #dcfce7;
+  --sell: #dc2626;
+  --sell-deep: #b91c1c;
+  --buy: #2563eb;
+  --buy-deep: #1d4ed8;
+  --trade-foreground: #ffffff;
+  --gold: #d9a514;
+  --gold-foreground: #ffffff;
+  --amber: #f59e0b;
+  --candle-up: #089981;
+  --candle-down: #f23645;
+  --tether: #2db3a0;
+  --google: #ffffff;
+  --google-border: #747775;
+  --google-foreground: #1f1f1f;
+  --signal: #22e05a;
+  --signal-ring: #0b0f14;
+  --tv-frame: #ebebeb;
+  --tv-foreground: #131722;
+  --status-open: #d9f0ed;
+  --status-open-dot: #036853;
+  --status-delay: #fdf0f7;
+  --status-delay-fg: #b0185e;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #2563eb;
+  --nav: #ffffff;
+  --nav-muted: #6b6b80;
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar-foreground: oklch(0.21 0.02 265);
+  --sidebar-primary: oklch(0.546 0.215 262.9);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.967 0.003 265);
+  --sidebar-accent-foreground: oklch(0.21 0.02 265);
+  --sidebar-border: oklch(0.9 0.005 265);
+  --sidebar-ring: oklch(0.546 0.215 262.9);
+}
+
+.dark {
+  --google: #131314;
+  --google-border: #8e918f;
+  --google-foreground: #e3e3e3;
+  --background: oklch(0.17 0.015 265);
+  --foreground: oklch(0.96 0.005 265);
+  --card: oklch(0.21 0.018 265);
+  --card-foreground: oklch(0.96 0.005 265);
+  --popover: oklch(0.23 0.018 265);
+  --popover-foreground: oklch(0.96 0.005 265);
+  --primary: oklch(0.62 0.19 262);
+  --primary-foreground: oklch(1 0 0);
+  --primary-soft: oklch(0.3 0.06 262);
+  --secondary: oklch(0.26 0.018 265);
+  --secondary-foreground: oklch(0.96 0.005 265);
+  --muted: oklch(0.26 0.018 265);
+  --muted-foreground: oklch(0.7 0.02 265);
+  --accent: oklch(0.3 0.06 262);
+  --accent-foreground: oklch(0.96 0.005 265);
+  --destructive: oklch(0.66 0.2 25);
+  --destructive-foreground: oklch(1 0 0);
+  --destructive-soft: oklch(0.32 0.08 25);
+  --success: oklch(0.7 0.16 150);
+  --success-foreground: oklch(0.15 0.02 150);
+  --success-soft: oklch(0.3 0.07 155);
+  --border: oklch(0.3 0.015 265);
+  --input: oklch(0.34 0.015 265);
+  --ring: oklch(0.62 0.19 262);
+  --nav: oklch(0.19 0.016 265);
+  --nav-muted: oklch(0.7 0.02 265);
+  --tv-frame: oklch(0.12 0.01 265);
+  --tv-foreground: oklch(0.96 0.005 265);
+  --status-open: oklch(0.3 0.06 170);
+  --status-open-dot: oklch(0.75 0.14 170);
+  --status-delay: oklch(0.3 0.06 340);
+  --status-delay-fg: oklch(0.8 0.15 340);
+  --sidebar: oklch(0.21 0.018 265);
+  --sidebar-foreground: oklch(0.96 0.005 265);
+  --sidebar-primary: oklch(0.62 0.19 262);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.26 0.018 265);
+  --sidebar-accent-foreground: oklch(0.96 0.005 265);
+  --sidebar-border: oklch(0.3 0.015 265);
+  --sidebar-ring: oklch(0.62 0.19 262);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    background-color: var(--color-muted);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Rounded list row used across account menus */
+@utility menu-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  height: 48.5px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-card);
+  padding: 0 16px;
+  font-size: 14.5px;
+  font-weight: 500;
+  text-align: left;
+  transition: background-color 150ms;
+  &:hover {
+    background: var(--color-muted);
+  }
+}
+
+@keyframes price-flash {
+  0% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+@utility animate-flash {
+  animation: price-flash 300ms ease-out;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Reference-inspired admin theme stays isolated from the trading screens. */
+.admin-workspace {
+  --background: oklch(0.977 0.018 205);
+  --foreground: oklch(0.23 0.055 250);
+  --card: oklch(0.992 0.011 205);
+  --card-foreground: var(--foreground);
+  --nav: oklch(0.954 0.027 207);
+  --primary: oklch(0.67 0.145 233);
+  --primary-foreground: oklch(1 0 0);
+  --primary-soft: oklch(0.891 0.067 218);
+  --muted: oklch(0.951 0.023 209);
+  --muted-foreground: oklch(0.46 0.06 236);
+  --border: oklch(0.892 0.04 216);
+  --input: var(--border);
+  --accent: var(--primary-soft);
+  --accent-foreground: var(--primary);
+  --secondary: var(--nav);
+  --secondary-foreground: var(--foreground);
+  --ring: var(--primary);
+  --radius: 0.5rem;
+}
+.dark .admin-workspace {
+  --background: oklch(0.19 0.022 220);
+  --foreground: oklch(0.96 0.01 210);
+  --card: oklch(0.23 0.026 220);
+  --nav: oklch(0.21 0.028 220);
+  --primary: oklch(0.77 0.12 220);
+  --primary-soft: oklch(0.33 0.06 220);
+  --muted: oklch(0.27 0.028 220);
+  --muted-foreground: oklch(0.76 0.04 218);
+  --border: oklch(0.36 0.035 220);
+}
+.admin-stat {
+  min-height: 124px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  padding: 18px 16px;
+}
+.admin-stat.compact { min-height: 60px; padding: 10px 12px; }
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+}

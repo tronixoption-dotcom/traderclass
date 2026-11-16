@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794829460725,
+      "tag": "0000_admin_workspace",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794829787927,
+      "tag": "0001_team_role_reassignment_safety",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794829816023,
+      "tag": "0002_restore_signup_profile_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794830260287,
+      "tag": "0003_admin_session_unlocks",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794840000000,
+      "tag": "0004_mpesa_wallet",
+      "breakpoints": true
+    }
+  ]
+}
