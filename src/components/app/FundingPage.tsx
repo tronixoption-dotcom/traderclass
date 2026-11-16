@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { ArrowRight, Check, Clock3, Copy, WalletCards } from 'lucide-react';
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Clock3, Copy, WalletCards } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +23,7 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
   const [contact, setContact] = useState('');
   const [reference, setReference] = useState('');
   const [busy, setBusy] = useState(false);
+  const [choosingMethod, setChoosingMethod] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -82,18 +83,49 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
     <div className="mx-auto grid size-20 place-items-center rounded-2xl bg-emerald-600 text-white"><WalletCards className="size-10"/></div><div><h2 className="text-xl font-bold">Activate your account</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">To activate your account and access withdrawals, make at least one successful deposit. Choose a deposit method to get started.</p></div><Link to="/deposit" className="inline-flex h-14 w-full items-center justify-center rounded-full bg-primary px-5 text-base font-bold text-primary-foreground">Activate Account</Link>
   </section></div>;
 
-  const selectable = [{ id: 'mpesa', name: 'M-Pesa', asset: 'KES', network: '', deposit_address: '', instructions: 'Pay securely using an M-Pesa prompt sent to your phone.', min_amount: 1, max_amount: 150000, provider: 'manual', enabled: true }, ...allMethods.map((method) => ({ ...method, enabled: mode === 'deposit' ? method.deposits_enabled : method.withdrawals_enabled }))];
-  const current = methodId === 'mpesa' ? selectable[0] : selected;
+  const presetExchanges = [
+    { code: 'binance', name: 'Binance', network: 'TRC20' },
+    { code: 'bybit', name: 'Bybit', network: 'TRC20' },
+    { code: 'okx', name: 'OKX', network: 'TRC20' },
+  ];
+  const exchangeChoices = presetExchanges.map((preset) => {
+    const saved = allMethods.find((method) => method.code === preset.code);
+    return saved
+      ? { ...saved, enabled: mode === 'deposit' ? saved.deposits_enabled : saved.withdrawals_enabled }
+      : { id: `not-configured-${preset.code}`, code: preset.code, name: preset.name, asset: 'USDT', network: preset.network, deposit_address: '', instructions: '', min_amount: 1, max_amount: 100000, enabled: false };
+  });
+  const presetCodes = new Set(presetExchanges.map((method) => method.code));
+  const extraMethods = allMethods.filter((method) => !presetCodes.has(method.code)).map((method) => ({ ...method, enabled: mode === 'deposit' ? method.deposits_enabled : method.withdrawals_enabled }));
+  const mpesaChoice = { id: 'mpesa', name: 'M-Pesa', asset: 'KES', network: '', deposit_address: '', instructions: 'Pay securely using an M-Pesa prompt sent to your phone.', min_amount: 1, max_amount: 150000, provider: 'manual', enabled: true };
+  const selectable = [mpesaChoice, ...exchangeChoices, ...extraMethods];
+  const current = selectable.find((method) => method.id === methodId) ?? mpesaChoice;
   const configured = methodId === 'mpesa' || !!selected;
 
+  if (choosingMethod) return <div className="pb-6">
+    <header className="sticky top-0 z-10 flex h-[49px] items-center bg-background px-2">
+      <button type="button" aria-label="Back to deposit" onClick={() => setChoosingMethod(false)} className="grid size-9 place-items-center rounded-full hover:bg-muted"><ChevronLeft className="size-8"/></button>
+      <h1 className="ml-3 text-lg font-bold">Payment method</h1>
+    </header>
+    <section className="space-y-4 px-4 pt-5">
+      <p className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Recommended &amp; crypto ✨</p>
+      <div className="space-y-3">{selectable.map((method) => <button key={method.id} type="button" onClick={() => {
+        if (!method.enabled) { toast.info(`${method.name} will be available after an admin configures its wallet and enables it.`); return; }
+        setMethodId(method.id); setAmount(method.asset === 'KES' ? (mode === 'deposit' ? '1000' : '500') : '50'); setContact(''); setChoosingMethod(false);
+      }} className={`flex min-h-[78px] w-full items-center gap-4 rounded-full border border-border bg-card px-5 text-left transition ${method.enabled ? 'hover:border-primary hover:bg-primary/5' : 'opacity-60'}`}>
+        <PlatformMark name={method.name}/><span className="min-w-0 flex-1"><span className="block text-base font-semibold">{method.name}</span><span className="mt-1 block text-xs text-muted-foreground">{method.enabled ? `${method.asset}${method.network ? ` · ${method.network}` : ''}` : 'Admin setup required'}</span></span>{method.enabled ? <ChevronRight className="size-5 text-muted-foreground"/> : <span className="text-[10px] text-muted-foreground">Unavailable</span>}
+      </button>)}</div>
+    </section>
+  </div>;
+
   return <div className="pb-6"><PageHeader title={mode === 'deposit' ? 'Deposit' : 'Withdraw'} compact/><section className="mx-4 mt-4 space-y-5 rounded-2xl border border-border bg-card p-4 sm:p-6">
-    <div><h2 className="text-lg font-bold">Payment method</h2><p className="mt-1 text-sm text-muted-foreground">{mode === 'deposit' ? 'Choose how you want to pay.' : 'Choose where to receive your payout.'}</p></div>
-    <div className="space-y-3">{selectable.map((method) => { const active = methodId===method.id; return <button key={method.id} type="button" disabled={!method.enabled} onClick={() => { setMethodId(method.id); setAmount(method.asset === 'KES' ? (mode==='deposit'?'1000':'500') : '50'); setContact(''); }} className={`flex min-h-[72px] w-full items-center gap-3 rounded-full border px-4 text-left transition ${active?'border-2 border-primary bg-primary/10':'border-border'} ${method.enabled?'hover:bg-muted/60':'cursor-not-allowed opacity-55'}`}><PlatformMark name={method.name}/><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{method.name}</span><span className="mt-1 block text-xs text-muted-foreground">{method.enabled?`${method.asset}${method.network?` · ${method.network}`:''}`:'Admin setup required'}</span></span><ArrowRight className="size-5 shrink-0 text-muted-foreground"/></button>; })}</div>
+    <div><p className="text-sm text-muted-foreground">Account</p><div className="mt-2 flex min-h-[68px] items-center gap-3 rounded-[13px] border border-input bg-background px-4"><span className="grid size-10 place-items-center rounded-full bg-primary/10 text-lg">{currency==='KES'?'🇰🇪':currency==='USD'?'🇺🇸':'₮'}</span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{currency} Account</span><span className="mt-1 block text-xs text-muted-foreground">Available {money(walletBalance(currency),currency)}</span></span></div></div>
+    <div><h2 className="text-lg font-bold">{mode === 'deposit' ? 'Deposit amount' : 'Withdrawal amount'}</h2><p className="mt-1 text-sm text-muted-foreground">Choose an amount and payment method.</p></div>
     {mode === 'withdraw' && <div className="rounded-xl bg-muted/50 p-3 text-sm"><span className="text-muted-foreground">Available balance</span><span className="float-right font-bold">{money(walletBalance(currency), currency)}</span></div>}
     {selected && mode === 'deposit' && <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4"><p className="text-sm font-semibold">Send {selected.asset} using {selected.name}{selected.network ? ` · ${selected.network}` : ''}</p><p className="text-xs leading-5 text-muted-foreground">{selected.instructions || 'Send only the selected asset on the network shown.'}</p><div className="break-all rounded-lg border border-border bg-background p-3 font-mono text-sm">{selected.deposit_address}</div><Button variant="outline" size="sm" onClick={() => { void navigator.clipboard.writeText(selected.deposit_address); toast.success('Wallet address copied'); }}><Copy className="mr-2 size-4"/>Copy address</Button><p className="text-xs text-muted-foreground">After sending, enter the transaction hash below. Admin review is required before funds are credited.</p></div>}
     {methodId === 'mpesa' && <div className="rounded-xl bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">KES deposits and withdrawals use M-Pesa. The payment prompt or payout is confirmed through Safaricom.</div>}
     <label className="block text-sm font-semibold">Amount ({currency})<span className="mt-2 flex h-14 items-center rounded-xl border-2 border-primary bg-background px-4"><span className="mr-2 font-bold text-muted-foreground">{currency === 'KES' ? 'KES' : currency}</span><Input aria-label={`Amount in ${currency}`} className="h-full border-0 px-0 text-lg font-bold shadow-none focus-visible:ring-0" type="number" min={current?.min_amount ?? 1} max={Math.min(current?.max_amount ?? 150000, mode === 'withdraw' ? walletBalance(currency) : 1_000_000)} step={currency === 'KES' ? 1 : 'any'} value={amount} onChange={(event) => setAmount(event.target.value)}/></span></label>
     <div className="flex flex-wrap gap-2">{presets.filter((preset) => mode === 'deposit' || preset <= walletBalance(currency)).map((preset) => <button key={preset} type="button" onClick={() => setAmount(String(preset))} className={`rounded-lg border px-3 py-2 text-sm ${amountNumber===preset?'border-2 border-primary bg-primary/10':'border-border hover:bg-muted'}`}>{money(preset,currency)}</button>)}</div>
+    <div><p className="mb-2 text-sm font-medium">Payment method</p><button type="button" onClick={() => setChoosingMethod(true)} className="flex h-[68px] w-full items-center gap-3 rounded-[13px] border border-input bg-background px-4 text-left hover:bg-muted/50"><PlatformMark name={current.name}/><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{current.name}</span><span className="mt-1 block text-xs text-muted-foreground">{current.asset}{current.network ? ` · ${current.network}` : ''}</span></span><ChevronRight className="size-5 text-muted-foreground"/></button></div>
     {methodId === 'mpesa' ? <label className="block text-sm font-semibold">{mode === 'deposit' ? 'M-Pesa phone number' : 'M-Pesa phone number'}<Input className="mt-2 h-12" inputMode="tel" autoComplete="tel" placeholder="07XXXXXXXX" value={contact} onChange={(event)=>setContact(event.target.value)}/></label> : mode === 'deposit' ? <label className="block text-sm font-semibold">Transaction hash / payment reference<Input className="mt-2 h-12 font-mono" placeholder="Paste transaction ID" value={reference} onChange={(event)=>setReference(event.target.value)}/></label> : <label className="block text-sm font-semibold">Your {currency} wallet address<Input className="mt-2 h-12 font-mono" placeholder="Enter your receiving wallet" value={contact} onChange={(event)=>setContact(event.target.value)}/></label>}
     <Button className="h-14 w-full rounded-full text-base font-bold" disabled={busy||!configured||!amount} onClick={()=>void submit()}>{busy?'Please wait…':mode==='deposit'?'Deposit':'Withdraw'}<ArrowRight className="ml-2 size-5"/></Button>
     <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground"><Clock3 className="size-3.5"/>{mode==='deposit'&&methodId!=='mpesa'?'Crypto deposits are credited after an admin confirms the transaction on-chain.':mode==='withdraw'&&methodId!=='mpesa'?'The selected amount is reserved while an admin processes the payout.':'Your balance updates when the M-Pesa transaction is confirmed.'}</p>
