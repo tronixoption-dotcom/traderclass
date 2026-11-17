@@ -32,6 +32,12 @@ export type Database = {
         Update: { id?: string; user_id?: string; method_id?: string | null; method_name?: string; kind?: string; asset?: string; amount?: number; status?: string; user_reference?: string; destination?: string; admin_note?: string; reviewed_by?: string | null; reviewed_at?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
+      client_wallet_controls: {
+        Row: { user_id: string; agent_enabled: boolean; deposits_enabled: boolean; withdrawals_enabled: boolean; updated_at: string }
+        Insert: { user_id: string; agent_enabled?: boolean; deposits_enabled?: boolean; withdrawals_enabled?: boolean; updated_at?: string }
+        Update: { user_id?: string; agent_enabled?: boolean; deposits_enabled?: boolean; withdrawals_enabled?: boolean; updated_at?: string }
+        Relationships: []
+      }
       real_trades: {
         Row: { id: string; request_id: string; user_id: string; symbol: string; inst_id: string; direction: string; asset: string; stake: number; entry_price: number; entry_price_ts: number; duration_seconds: number; payout_multiplier: number; reserved_profit: number; expires_at: string; status: string; close_price: number | null; close_candle_ts: number | null; payout: number; settled_at: string | null; by_robot: boolean; created_at: string }
         Insert: { id?: string; request_id: string; user_id: string; symbol: string; inst_id: string; direction: string; asset?: string; stake: number; entry_price: number; entry_price_ts: number; duration_seconds: number; payout_multiplier?: number; reserved_profit: number; expires_at: string; status?: string; close_price?: number | null; close_candle_ts?: number | null; payout?: number; settled_at?: string | null; by_robot?: boolean; created_at?: string }
@@ -292,6 +298,9 @@ export type Database = {
       request_funding_deposit: { Args: { p_method_id: string; p_amount: number; p_reference?: string }; Returns: string }
       request_funding_withdrawal: { Args: { p_method_id: string; p_amount: number; p_destination: string }; Returns: string }
       review_funding_transaction: { Args: { p_transaction_id: string; p_approve: boolean; p_note?: string }; Returns: undefined }
+      admin_credit_client_wallet: { Args: { p_user_id: string; p_amount: number; p_note?: string }; Returns: undefined }
+      admin_debit_client_wallet: { Args: { p_user_id: string; p_amount: number; p_note?: string }; Returns: undefined }
+      admin_set_client_wallet_control: { Args: { p_user_id: string; p_field: string; p_enabled: boolean }; Returns: undefined }
       open_real_trade: { Args: { p_user_id: string; p_symbol: string; p_inst_id: string; p_direction: string; p_stake: number; p_duration_seconds: number; p_entry_price: number; p_entry_price_ts: number; p_request_id: string; p_by_robot?: boolean }; Returns: string }
       settle_real_trade: { Args: { p_trade_id: string; p_close_price: number; p_close_candle_ts: number }; Returns: string }
       advance_inhouse_market: { Args: { p_symbol: string; p_base_price: number; p_volatility: number; p_until?: string }; Returns: { tick_at: string; price: number }[] }

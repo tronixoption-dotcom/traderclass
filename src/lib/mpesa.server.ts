@@ -87,6 +87,9 @@ export async function startStkDeposit(userId: string, rawAmount: number, rawPhon
   const bearer = await token();
   const db = database();
   await requirePaymentsEnabled(db, 'deposit');
+  const { data: walletControl, error: controlError } = await db.from('client_wallet_controls').select('deposits_enabled').eq('user_id', userId).maybeSingle();
+  if (controlError) throw new Error('Could not check deposit access');
+  if (walletControl && !walletControl.deposits_enabled) throw new Error('Deposits are disabled for this account');
   const { data: paymentSettings, error: settingsError } = await db.from('site_settings').select('deposit_fee_percent').eq('id', true).single();
   if (settingsError || !paymentSettings) throw new Error('Could not load deposit fee settings');
   const feeKes = Math.round(kes * Number(paymentSettings.deposit_fee_percent ?? 0) / 100);
@@ -132,6 +135,9 @@ export async function startB2cWithdrawal(userId: string, rawAmount: number, rawP
   const bearer = await token();
   const db = database();
   await requirePaymentsEnabled(db, 'withdrawal');
+  const { data: walletControl, error: controlError } = await db.from('client_wallet_controls').select('withdrawals_enabled').eq('user_id', userId).maybeSingle();
+  if (controlError) throw new Error('Could not check withdrawal access');
+  if (walletControl && !walletControl.withdrawals_enabled) throw new Error('Withdrawals are disabled for this account');
   const [mpesaDeposits, otherDeposits] = await Promise.all([
     db.from('mpesa_transactions').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('kind', 'deposit').eq('status', 'completed'),
     db.from('funding_transactions').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('kind', 'deposit').eq('status', 'completed'),

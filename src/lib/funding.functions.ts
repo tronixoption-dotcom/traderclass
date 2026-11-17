@@ -13,15 +13,16 @@ const methodInput = z.object({
 const configuredMethodInput = methodInput.refine((value) => value.asset === 'USDT' && value.min_amount >= 10, 'Crypto deposits must use USDT with a minimum of 10 USDT').refine((value) => !value.deposits_enabled || !value.deposit_address.toUpperCase().startsWith('UNCONFIGURED-'), 'Set the real receiving wallet address before enabling deposits');
 
 export const loadFunding = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
-  const [methods, wallets, transactions, deposits, settings] = await Promise.all([
+  const [methods, wallets, transactions, deposits, settings, controls] = await Promise.all([
     context.supabase.from('funding_methods').select('*').order('sort_order'),
     context.supabase.from('funding_wallets').select('asset,balance').eq('user_id', context.userId),
     context.supabase.from('funding_transactions').select('*').eq('user_id', context.userId).order('created_at', { ascending: false }).limit(50),
     context.supabase.from('funding_transactions').select('id', { count: 'exact', head: true }).eq('user_id', context.userId).eq('kind', 'deposit').eq('status', 'completed'),
     context.supabase.from('site_settings').select('deposit_fee_percent,withdrawal_fee_percent').eq('id', true).maybeSingle(),
+    context.supabase.from('client_wallet_controls').select('deposits_enabled,withdrawals_enabled').eq('user_id', context.userId).maybeSingle(),
   ]);
-  if (methods.error || wallets.error || transactions.error || deposits.error || settings.error) throw new Error('Could not load funding options');
-  return { methods: methods.data ?? [], wallets: wallets.data ?? [], transactions: transactions.data ?? [], isActivated: (deposits.count ?? 0)>0, depositFeePercent: Number(settings.data?.deposit_fee_percent ?? 0), withdrawalFeePercent: Number(settings.data?.withdrawal_fee_percent ?? 0) };
+  if (methods.error || wallets.error || transactions.error || deposits.error || settings.error || controls.error) throw new Error('Could not load funding options');
+  return { methods: methods.data ?? [], wallets: wallets.data ?? [], transactions: transactions.data ?? [], isActivated: (deposits.count ?? 0)>0, depositFeePercent: Number(settings.data?.deposit_fee_percent ?? 0), withdrawalFeePercent: Number(settings.data?.withdrawal_fee_percent ?? 0), accountControls: { depositsEnabled: controls.data?.deposits_enabled ?? true, withdrawalsEnabled: controls.data?.withdrawals_enabled ?? true } };
 });
 
 const cryptoAmount = z.number().positive().max(1_000_000).refine((amount) => Number.isInteger(amount * 100_000_000), 'Amount supports up to 8 decimal places');
@@ -46,7 +47,9 @@ export const getFundingAdmin = createServerFn({ method: 'POST' }).middleware([re
     context.supabase.from('profiles').select('id,username'),
   ]);
   if (methods.error || transactions.error || profiles.error) throw new Error('Could not load funding administration');
-  return { methods: methods.data ?? [], transactions: transactions.data ?? [], profiles: profiles.data ?? [] };
+  const { data: controls, error: controlsError } = roles.includes('admin') ? await context.supabase.from('client_wallet_controls').select('*') : { data: [], error: null };
+  if (controlsError) throw new Error('Could not load funding administration');
+  return { methods: methods.data ?? [], transactions: transactions.data ?? [], profiles: profiles.data ?? [], controls: controls ?? [] };
 });
 
 export const saveFundingMethod = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => configuredMethodInput.parse(value)).handler(async ({ data, context }) => {
@@ -65,5 +68,29 @@ export const reviewFundingTransaction = createServerFn({ method: 'POST' }).middl
   const { error } = await context.supabase.rpc('review_funding_transaction', { p_transaction_id: data.id, p_approve: data.approve, p_note: data.note });
   if (error) throw new Error(error.message || 'Could not review transaction');
   await context.supabase.from('admin_audit').insert({ actor_id: context.userId, action: `${data.approve ? 'Approved' : 'Rejected'} funding transaction ${data.id}` });
+  return { ok: true };
+});
+
+export const creditClientWallet = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ userId: z.string().uuid(), amount: z.number().positive().max(1_000_000).refine((amount) => Number.isInteger(amount * 100_000_000), 'Amount supports up to 8 decimal places'), note: z.string().trim().max(500) }).parse(value)).handler(async ({ data, context }) => {
+  await requireStaff(context.supabase, context.userId, context.claims, true);
+  const { error } = await context.supabase.rpc('admin_credit_client_wallet', { p_user_id: data.userId, p_amount: data.amount, p_note: data.note });
+  if (error) throw new Error(error.message || 'Could not credit client wallet');
+  await context.supabase.from('admin_audit').insert({ actor_id: context.userId, action: `Credited ${data.amount} USDT to client ${data.userId}` });
+  return { ok: true };
+});
+
+export const setClientWalletControl = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ userId: z.string().uuid(), field: z.enum(['agent_enabled', 'deposits_enabled', 'withdrawals_enabled']), enabled: z.boolean() }).parse(value)).handler(async ({ data, context }) => {
+  await requireStaff(context.supabase, context.userId, context.claims, true);
+  const { error } = await context.supabase.rpc('admin_set_client_wallet_control', { p_user_id: data.userId, p_field: data.field, p_enabled: data.enabled });
+  if (error) throw new Error(error.message || 'Could not update client account controls');
+  await context.supabase.from('admin_audit').insert({ actor_id: context.userId, action: `Set ${data.field}=${data.enabled} for client ${data.userId}` });
+  return { ok: true };
+});
+
+export const debitClientWallet = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ userId: z.string().uuid(), amount: z.number().positive().max(1_000_000).refine((amount) => Number.isInteger(amount * 100_000_000), 'Amount supports up to 8 decimal places'), note: z.string().trim().max(500) }).parse(value)).handler(async ({ data, context }) => {
+  await requireStaff(context.supabase, context.userId, context.claims, true);
+  const { error } = await context.supabase.rpc('admin_debit_client_wallet', { p_user_id: data.userId, p_amount: data.amount, p_note: data.note });
+  if (error) throw new Error(error.message || 'Could not debit client wallet');
+  await context.supabase.from('admin_audit').insert({ actor_id: context.userId, action: `Debited ${data.amount} USDT from client ${data.userId}` });
   return { ok: true };
 });
