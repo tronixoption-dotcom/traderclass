@@ -2,4 +2,4 @@ project_id = "ifgvocgcwmdsnqgvvvsw"
 
 [auth.email]
 enable_signup = true
-enable_confirmations = false
+enable_confirmations = true

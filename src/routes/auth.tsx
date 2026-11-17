@@ -103,7 +103,8 @@ function AuthPage() {
     });
     setBusy(false);
     if (error) toast.error(error.message);
-    else if (!data.session) toast.error("Email confirmation is enabled for this Supabase project. Disable Confirm email in Authentication settings to let new users sign in without email verification.");
+    else if (!data.session) toast.success("Account created. Check your email and open the verification link before signing in.");
+    else toast.success("Account created successfully.");
   };
 
   const inputClass = "h-[48px] w-full rounded-xl border border-white/10 bg-[#070e1c] px-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#eab84e]/70 focus:ring-2 focus:ring-[#eab84e]/10";
