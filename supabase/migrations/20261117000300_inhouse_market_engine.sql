@@ -31,13 +31,13 @@ UPDATE public.site_settings SET real_rtp_target_percent=95,real_win_rate_target_
   real_weekly_loss_cap=0, real_monthly_loss_cap=0, real_market_exposure_cap=0,
   real_user_exposure_cap=0 WHERE id=true;
 
-CREATE TABLE public.inhouse_market_ticks (
+CREATE TABLE IF NOT EXISTS public.inhouse_market_ticks (
   symbol text NOT NULL CHECK (symbol ~ '^[A-Z0-9]{3,16}$'),
   tick_at timestamptz NOT NULL,
   price numeric(30,12) NOT NULL CHECK (price > 0),
   PRIMARY KEY(symbol,tick_at)
 );
-CREATE INDEX inhouse_market_ticks_time_idx ON public.inhouse_market_ticks(tick_at DESC);
+CREATE INDEX IF NOT EXISTS inhouse_market_ticks_time_idx ON public.inhouse_market_ticks(tick_at DESC);
 ALTER TABLE public.inhouse_market_ticks ENABLE ROW LEVEL SECURITY;
 GRANT ALL ON public.inhouse_market_ticks TO service_role;
 
