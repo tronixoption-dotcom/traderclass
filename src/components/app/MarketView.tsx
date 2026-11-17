@@ -54,6 +54,8 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
   const [emoji, setEmoji] = useState("😀");
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [full, setFull] = useState(false);
+  const [quoteStatus, setQuoteStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [quoteError, setQuoteError] = useState('');
   const key = `${symbol}:${tf}`;
   const list = drawings[key] ?? [];
   const setDrawings = useCallback((fn: (d: Drawing[]) => Drawing[]) => setDrawingsMap((m) => ({ ...m, [key]: fn(m[key] ?? []) })), [key]);
@@ -62,18 +64,27 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
   const loadMarketQuote = useServerFn(getInhouseMarketQuote);
 
   useEffect(() => {
-    if (accountMode !== 'real' || !user) { clearMarketQuote(symbol); return; }
+    if (accountMode !== 'real' || !user) { clearMarketQuote(symbol); setQuoteStatus('idle'); setQuoteError(''); return; }
     let active = true;
+    setQuoteStatus('connecting');
+    setQuoteError('');
     const refresh = async () => {
       try {
         const quote = await loadMarketQuote({ data: { symbol } });
-        if (active) setMarketQuote(symbol, quote.price, quote.bid, quote.ask, quote.timestamp);
+        if (active) {
+          setMarketQuote(symbol, quote.price, quote.bid, quote.ask, quote.timestamp);
+          setQuoteStatus('connected');
+          setQuoteError('');
+        }
       } catch (error) {
-        if (active) console.error('In-house market quote refresh failed', error);
+        if (active) {
+          setQuoteStatus('error');
+          setQuoteError(error instanceof Error ? error.message : 'Could not load the in-house market price');
+        }
       }
     };
     void refresh();
-    const timer = setInterval(() => { void refresh(); }, 1000);
+    const timer = setInterval(() => { void refresh(); }, 2000);
     return () => { active = false; clearInterval(timer); };
   }, [accountMode, symbol, user?.id, loadMarketQuote]);
 
@@ -99,7 +110,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex h-[45px] shrink-0 items-center justify-between px-[8.5px] md:h-[60px] md:px-[20px]">
         <div className="flex min-w-0 items-center gap-3">{!desktop && <div className="scale-75"><AdminEntry /></div>}<InstrumentPicker symbol={symbol} onChange={setSymbol} liveOnly={accountMode === 'real'} /></div>
-        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${accountMode === 'demo' || hasFreshMarketQuote(symbol) ? 'bg-success-soft text-success' : 'bg-muted text-muted-foreground'}`}>{accountMode === 'demo' ? 'DEMO MARKET' : hasFreshMarketQuote(symbol) ? 'IN-HOUSE MARKET' : 'CONNECTING'}</span>
+        <span title={quoteStatus === 'error' ? quoteError : undefined} role={accountMode === 'real' && quoteStatus === 'error' ? 'status' : undefined} className={`rounded-full px-2 py-1 text-[10px] font-bold ${accountMode === 'demo' || hasFreshMarketQuote(symbol) ? 'bg-success-soft text-success' : quoteStatus === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}>{accountMode === 'demo' ? 'DEMO MARKET' : hasFreshMarketQuote(symbol) ? 'IN-HOUSE MARKET' : quoteStatus === 'error' ? 'MARKET UNAVAILABLE' : 'CONNECTING'}</span>
         <AccountPicker />
       </div>
 
