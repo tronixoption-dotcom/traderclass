@@ -8,6 +8,7 @@ import { pageHead } from "@/components/app/meta";
 import { robotSession, useStore, useTick } from "@/lib/store";
 import { DURATIONS, STAKE_STEPS, backtestWinRate, formatDuration, formatMoney, round2, stepValue } from "@/lib/trading";
 import { getInhouseMarketHistory } from '@/lib/real-trading.functions';
+import { buildPracticeHistory } from '@/lib/feed';
 import { hasFreshMarketQuote } from "@/lib/feed";
 import { actionAllowed } from "@/lib/admin-rules";
 import { cn } from "@/lib/utils";
@@ -96,8 +97,8 @@ function RobotPage() {
     if (phase === "searching") return;
     setPhase("searching");
     try {
-      const rows = await loadMarketHistory({ data: { symbol: r.symbol, limit: 120 } });
-      const closes = rows.map((row) => row.price).filter((price) => Number.isFinite(price) && price > 0);
+      const rows = live ? await loadMarketHistory({ data: { symbol: r.symbol, limit: 120 } }) : buildPracticeHistory(r.symbol, 1, 120);
+      const closes = rows.map((row) => 'price' in row ? row.price : row.close).filter((price) => Number.isFinite(price) && price > 0);
       if (closes.length < 10) throw new Error('Not enough in-house price history to compare strategies');
       const trend = backtestWinRate(closes, "trend");
       const reverse = backtestWinRate(closes, "reverse");
@@ -115,12 +116,14 @@ function RobotPage() {
   const pl = session.pl;
   const robotEnabled = actionAllowed(siteSettings, 'robot');
   const liveReady = !!user && realSettings.enabled && hasFreshMarketQuote(r.symbol) && r.stake >= realSettings.minStake && (realSettings.maxStake <= 0 || r.stake <= realSettings.maxStake) && r.stake <= realBalance;
+  const demoReady = r.stake >= 1 && r.stake <= state.balances[state.active];
+  const ready = live ? liveReady : demoReady;
 
   return (
     <div className="flex min-h-full flex-col">
       <PageHeader title="Robot Settings" />
       <div className="flex-1 px-[21px] pt-[14px] pb-[20px] lg:px-[18px] lg:[zoom:1.12]">
-        <SectionTitle title="Live USDT account" sub={`${formatMoney(realBalance, 'USDT')} available for trading`} />
+        <SectionTitle title={live ? 'Live USDT account' : `Demo ${state.active} account`} sub={`${formatMoney(live ? realBalance : state.balances[state.active], live ? 'USDT' : state.active)} available for trading`} />
 
         <div className="mt-[24px]">
           <SectionTitle title="Order parameters" sub="Applied to each order" />
@@ -201,13 +204,13 @@ function RobotPage() {
           </div>
         </div>
 
-        {live && !liveReady && <p className="mt-3 rounded-lg bg-muted p-3 text-xs leading-5 text-muted-foreground">To start the live Robot, sign in, choose a market, wait for an in-house quote, and meet the configured stake settings with enough USDT.</p>}
+        {!ready && <p className="mt-3 rounded-lg bg-muted p-3 text-xs leading-5 text-muted-foreground">{live ? 'To start the live Robot, sign in, wait for an in-house quote, and meet the configured stake settings with enough USDT.' : 'Increase your demo balance or lower the robot stake to start.'}</p>}
         {!robotEnabled && <p className="mt-3 rounded-lg bg-muted p-3 text-xs leading-5 text-muted-foreground">Automated trading is currently paused by the administrator.</p>}
         <div className="mt-[17px] rounded-[12px] border border-input px-[15px] py-[4px]">
           {[
             { k: "Status", v: r.running ? "Running" : "Stopped", c: r.running ? "text-success" : "text-muted-foreground" },
             { k: "Trades", v: String(session.trades), c: "" },
-            { k: "Profits", v: formatMoney(session.profits, 'USDT'), c: "text-success" },
+            { k: "Profits", v: formatMoney(session.profits, live ? 'USDT' : state.active), c: "text-success" },
             { k: "Losses", v: String(session.losses), c: "text-destructive" },
           ].map((row) => (
             <div key={row.k} className="flex h-[35px] items-center justify-between border-b border-border text-[12.5px]">
@@ -219,26 +222,26 @@ function RobotPage() {
             <span className="font-semibold">Cumulative P/L</span>
             <span className={cn("tabular text-[13.5px] font-semibold", pl < 0 ? "text-destructive" : "text-success")}>
               {pl < 0 ? "-" : ""}
-              {formatMoney(Math.abs(pl), 'USDT')}
+              {formatMoney(Math.abs(pl), live ? 'USDT' : state.active)}
             </span>
           </div>
         </div>
         <p className="mt-[10px] text-center text-[10.5px] leading-[15px] text-muted-foreground">
-          Live account trades use your USDT balance and settle against the in-house market engine. Historical results are not a prediction.
+          {live ? 'Live account trades use your USDT balance and settle against the in-house market engine.' : 'Demo trades use a simulated price feed and virtual balance.'} Historical results are not a prediction.
         </p>
       </div>
 
       <div className="sticky bottom-0 z-10 border-t border-border bg-background px-[12px] pt-[13px] pb-[16px] lg:px-[20px] lg:pb-[18px]">
         <button
           onClick={() => setRobot({ running: !r.running })}
-          disabled={!r.running && (!liveReady || !robotEnabled)}
+          disabled={!r.running && (!ready || !robotEnabled)}
           className={cn(
             "h-[52px] w-full rounded-full text-[16px] font-bold text-primary-foreground shadow-[0_6px_14px_color-mix(in_oklab,var(--primary)_35%,transparent)]",
             r.running ? "bg-sell" : "bg-primary",
-            !r.running && (!liveReady || !robotEnabled) && "cursor-not-allowed opacity-50",
+            !r.running && (!ready || !robotEnabled) && "cursor-not-allowed opacity-50",
           )}
         >
-          {r.running ? "Stop trading" : "Start live robot"}
+          {r.running ? "Stop trading" : live ? "Start live robot" : "Start demo robot"}
         </button>
       </div>
     </div>

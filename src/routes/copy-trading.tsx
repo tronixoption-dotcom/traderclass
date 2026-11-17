@@ -6,7 +6,7 @@ import { useStore, type RobotConfig } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/copy-trading")({
-  head: () => pageHead("Strategy presets", "Choose an automated trading strategy for your live USDT account."),
+  head: () => pageHead("Strategy presets", "Choose an automated trading strategy for your account."),
   component: CopyTradingPage,
 });
 
@@ -18,14 +18,14 @@ const STYLES: { id: string; name: string; symbol: string; strategy: RobotConfig[
 ];
 
 function CopyTradingPage() {
-  const { state, setRobot, accountMode } = useStore();
+  const { state, setRobot } = useStore();
   const navigate = useNavigate();
   const r = state.robot;
   return (
     <div className="pb-6">
       <PageHeader title="Copy trading" compact />
       <div className="space-y-[7px] px-[16.5px] pt-[14px]">
-        {STYLES.filter((style) => accountMode === 'real').map((s) => {
+        {STYLES.map((s) => {
           const copying = r.running && r.symbol === s.symbol && r.strategy === s.strategy && r.duration === s.duration;
           return (
             <div key={s.id} className="flex items-center rounded-[14px] border border-border px-[14px] py-[11px]">
@@ -49,7 +49,7 @@ function CopyTradingPage() {
             </div>
           );
         })}
-        <InfoNote className="pt-[10px]">Selecting a preset starts the Robot with your configured stake and risk limits. Strategies follow simple price rules; they do not copy a person or predict results. Live mode uses the in-house market engine for all listed instruments.</InfoNote>
+        <InfoNote className="pt-[10px]">Selecting a preset starts the Robot with your configured stake. Demo mode uses virtual funds and a simulated feed; live mode uses your USDT balance and the in-house market engine. Strategies do not copy a person or predict results.</InfoNote>
       </div>
     </div>
   );

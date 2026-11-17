@@ -1,11 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { getQuote, hasFreshMarketQuote, startFeed, subscribeFeed, setMarketQuote } from "./feed";
+import { getPracticePrice, getQuote, hasFreshMarketQuote, startFeed, subscribeFeed, setMarketQuote } from "./feed";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from '@/integrations/supabase/types';
 import {
   robotStopReason,
   round2,
+  settleTrade,
+  STARTING_BALANCE,
+  validateStake,
+  type AccountId,
   type Direction,
   type TradeStatus,
 } from "./trading";
@@ -21,7 +26,7 @@ export type Trade = {
   entry: number;
   close?: number;
   payout?: number;
-  account: 'USDT';
+  account: AccountId;
   openedAt: number;
   expiresAt: number;
   duration: number;
@@ -48,6 +53,10 @@ export type AuthUser = { id: string; email: string | null };
 export type AppState = {
   userId: string;
   name: string;
+  balances: Record<AccountId, number>;
+  active: AccountId;
+  accountMode: 'demo' | 'real';
+  trades: Trade[];
   theme: "light" | "dark";
   robot: RobotConfig;
 };
@@ -60,7 +69,11 @@ const uid = (n = 10) =>
 export function freshState(): AppState {
   return {
     userId: "GM" + uid(8),
-    name: "Trader",
+    name: "Demo Trader",
+    balances: { USD: STARTING_BALANCE, USDT: STARTING_BALANCE },
+    active: 'USDT',
+    accountMode: 'demo',
+    trades: [],
     theme: "light",
     robot: { running: false, symbol: "BTCUSD", stake: 5, duration: 5, strategy: "trend", stopLoss: 10, takeProfit: 200 },
   };
@@ -68,7 +81,7 @@ export function freshState(): AppState {
 
 type Ctx = {
   state: AppState;
-  accountMode: 'real';
+  accountMode: 'demo' | 'real';
   siteSettings: SiteSettings;
   hydrated: boolean;
   user: AuthUser | null;
@@ -80,6 +93,9 @@ type Ctx = {
   realBalance: number;
   realTrades: Trade[];
   realSettings: { enabled: boolean; minStake: number; maxStake: number };
+  placeTrade: (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean }) => string | null;
+  setActive: (account: AccountId) => void;
+  setAccountMode: (mode: 'demo' | 'real') => void;
   submitRealTrade: (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean }) => Promise<string | null>;
   setTheme: (t: "light" | "dark") => void;
   setName: (n: string) => void;
@@ -93,13 +109,14 @@ function mergeSaved(saved: Partial<AppState>): AppState {
   const base = freshState();
   const robot = { ...base.robot, ...(saved.robot ?? {}), running: false };
   if (!SYMBOLS.some((symbol) => symbol.id === robot.symbol)) robot.symbol = 'BTCUSD';
-  return { ...base, userId: saved.userId ?? base.userId, name: saved.name ?? base.name, theme: saved.theme ?? base.theme, robot };
+  return { ...base, ...saved, userId: saved.userId ?? base.userId, name: saved.name ?? base.name, theme: saved.theme ?? base.theme, robot };
 }
 
 /** Robot trades in the current session and their combined profit or loss. */
 export function robotSession(s: AppState, trades: Trade[] = []) {
   const since = s.robot.startedAt ?? Infinity;
-  const sessionTrades = trades.filter((t) => t.byRobot && t.openedAt >= since);
+  const source = s.accountMode === 'real' ? trades : s.trades;
+  const sessionTrades = source.filter((t) => t.byRobot && t.openedAt >= since);
   const done = sessionTrades.filter((t) => t.status !== "active");
   const profits = round2(done.filter((t) => t.status === "won").reduce((a, t) => a + (t.payout ?? 0) - t.stake, 0));
   const losses = done.filter((t) => t.status === "lost").length;
@@ -172,6 +189,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const submitRealTradeRef = useRef(submitRealTrade);
   submitRealTradeRef.current = submitRealTrade;
 
+  const placeTrade: Ctx['placeTrade'] = useCallback(({ symbol, direction, stake, duration, byRobot }) => {
+    if (!actionAllowed(settingsRef.current, byRobot ? 'robot' : 'trade')) return 'Demo trading is currently paused by the administrator';
+    const current = ref.current;
+    const error = validateStake(stake, current.balances[current.active]);
+    if (error) return error;
+    const now = Date.now();
+    const trade: Trade = {
+      id: uid(12), symbol, direction, stake, entry: getPracticePrice(symbol), account: current.active,
+      openedAt: now, expiresAt: now + duration * 1000, duration, status: 'active',
+      ...(byRobot ? { byRobot: true } : {}),
+    };
+    commit({
+      ...current,
+      balances: { ...current.balances, [current.active]: round2(current.balances[current.active] - stake) },
+      trades: [trade, ...current.trades].slice(0, 300),
+    });
+    return null;
+  }, [commit]);
+
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -229,20 +265,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => { active = false; clearInterval(timer); };
   }, [user?.id, synced, state.robot.running, state.robot.symbol, loadInhouseQuote]);
 
-  // Schedule live robot orders from the latest in-house market quote.
+  // Settle demo contracts on the browser practice feed and schedule robot orders.
   useEffect(() => {
     if (!hydrated) return;
     return subscribeFeed(() => {
       const cur = ref.current;
+      const now = Date.now();
+      const due = cur.trades.filter((trade) => trade.status === 'active' && trade.expiresAt <= now);
+      if (due.length) {
+        const balances = { ...cur.balances };
+        const trades = cur.trades.map((trade) => {
+          if (trade.status !== 'active' || trade.expiresAt > now) return trade;
+          const close = getPracticePrice(trade.symbol);
+          const result = settleTrade(trade.direction, trade.entry, close, trade.stake);
+          balances[trade.account] = round2(balances[trade.account] + result.payout);
+          return { ...trade, close, payout: result.payout, status: result.status };
+        });
+        commit({ ...ref.current, balances, trades });
+      }
       if (cur.robot.running) {
-        const reason = robotStopReason(robotSession(cur, realTradesRef.current).pl, cur.robot.stopLoss, cur.robot.takeProfit);
+        const sourceTrades = cur.accountMode === 'real' ? realTradesRef.current : cur.trades;
+        const reason = robotStopReason(robotSession(cur, sourceTrades).pl, cur.robot.stopLoss, cur.robot.takeProfit);
         if (reason) {
           commit({ ...cur, robot: { ...cur.robot, running: false } });
           toast(reason === "stop_loss" ? "Robot stopped: stop loss reached" : "Robot stopped: take profit reached");
           return;
         }
       }
-      const robotTrades = realTradesRef.current;
+      const robotTrades = cur.accountMode === 'real' ? realTradesRef.current : cur.trades;
       if (cur.robot.running && !robotTrades.some((t) => t.byRobot && t.status === "active")) {
         const r = cur.robot;
         const last = robotTrades.find((t) => t.byRobot && t.symbol === r.symbol && t.close !== undefined);
@@ -256,20 +306,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             dir = r.strategy === 'trend' ? (up ? 'buy' : 'sell') : (up ? 'sell' : 'buy');
           }
         }
-        if (robotSubmitPending.current || !realSettingsRef.current.enabled || !hasFreshMarketQuote(r.symbol)) return;
-        robotSubmitPending.current = true;
-        void (async () => {
-          try {
-            const err = await submitRealTradeRef.current({ symbol: r.symbol, direction: dir, stake: r.stake, duration: r.duration, byRobot: true });
-            if (err) {
-              commit({ ...ref.current, robot: { ...ref.current.robot, running: false } });
-              toast.error(`Robot stopped: ${err}`);
-            }
-          } finally { robotSubmitPending.current = false; }
-        })();
+        if (cur.accountMode === 'real') {
+          if (robotSubmitPending.current || !realSettingsRef.current.enabled || !hasFreshMarketQuote(r.symbol)) return;
+          robotSubmitPending.current = true;
+          void (async () => {
+            try {
+              const err = await submitRealTradeRef.current({ symbol: r.symbol, direction: dir, stake: r.stake, duration: r.duration, byRobot: true });
+              if (err) {
+                commit({ ...ref.current, robot: { ...ref.current.robot, running: false } });
+                toast.error(`Robot stopped: ${err}`);
+              }
+            } finally { robotSubmitPending.current = false; }
+          })();
+        } else {
+          const error = placeTrade({ symbol: r.symbol, direction: dir, stake: r.stake, duration: r.duration, byRobot: true });
+          if (error) { commit({ ...ref.current, robot: { ...ref.current.robot, running: false } }); toast.error(`Robot stopped: ${error}`); }
+        }
       }
     });
-  }, [hydrated, commit]);
+  }, [hydrated, commit, placeTrade]);
 
   // Load the signed-in user's profile for live account features.
   useEffect(() => {
@@ -286,10 +341,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       setAuthReady(false);
       setUser({ id: u.id, email: u.email ?? null });
-      const { data: prof } = await supabase.from("profiles").select("username, referral_code").eq("id", u.id).maybeSingle();
+      const [{ data: prof }, { data: practice }] = await Promise.all([
+        supabase.from("profiles").select("username, referral_code").eq("id", u.id).maybeSingle(),
+        supabase.from("practice_accounts").select("state").eq("user_id", u.id).maybeSingle(),
+      ]);
       if (!active) return;
       if (prof) setProfile(prof);
-      commit({ ...ref.current, userId: u.id, name: prof?.username ?? ref.current.name });
+      const saved = practice?.state && typeof practice.state === 'object' ? mergeSaved(practice.state as Partial<AppState>) : ref.current;
+      const next = { ...saved, userId: u.id, name: prof?.username ?? saved.name };
+      commit(next);
+      if (!practice) await supabase.from('practice_accounts').insert({ user_id: u.id, state: next as unknown as Json });
       if (active) {
         setSynced(true);
         setAuthReady(true);
@@ -324,10 +385,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, [hydrated, commit]);
 
+  useEffect(() => {
+    if (!user || !synced) return;
+    const timer = setTimeout(() => {
+      void supabase.from('practice_accounts').update({ state: state as unknown as Json, updated_at: new Date().toISOString() }).eq('user_id', user.id)
+        .then(({ error }) => { if (error) console.error('Could not save demo account state', error); });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [state, user, synced]);
+
   const value = useMemo<Ctx>(
     () => ({
       state,
-      accountMode: 'real',
+      accountMode: state.accountMode,
       siteSettings,
       hydrated,
       user,
@@ -341,6 +411,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       realTrades,
       realSettings,
       submitRealTrade,
+      placeTrade,
+      setActive: (account) => commit({ ...ref.current, active: account }),
+      setAccountMode: (mode) => commit({ ...ref.current, accountMode: mode, robot: { ...ref.current.robot, running: false } }),
       setTheme: (t) => commit({ ...ref.current, theme: t }),
       setName: (n) => {
         commit({ ...ref.current, name: n });
@@ -355,7 +428,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       },
       setRobot: (r) => {
-        if (r.running) {
+        if (r.running && ref.current.accountMode === 'real') {
           const config = { ...ref.current.robot, ...r };
           if (!user) { toast.error('Sign in before starting the live account robot'); return; }
           if (!realSettingsRef.current.enabled || !actionAllowed(settingsRef.current, 'trade') || !actionAllowed(settingsRef.current, 'robot')) { toast.error('Live account robot trading is currently unavailable'); return; }
@@ -369,7 +442,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       reset: () => commit({ ...freshState(), theme: ref.current.theme }),
     }),
-    [state, siteSettings, hydrated, commit, user, authReady, profile, synced, realBalance, realTrades, realSettings, submitRealTrade],
+    [state, siteSettings, hydrated, commit, user, authReady, profile, synced, realBalance, realTrades, realSettings, submitRealTrade, placeTrade],
   );
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import type { IChartApi, IPriceLine, ISeriesApi, SeriesType, UTCTimestamp } from "lightweight-charts";
-import { getPrice, subscribeFeed, type Candle } from "@/lib/feed";
+import { buildPracticeHistory, getPrice, subscribeFeed, type Candle } from "@/lib/feed";
 import { getSymbol } from "@/lib/symbols";
 import type { Trade } from "@/lib/store";
 import { resolveToken } from "./color";
@@ -36,6 +36,7 @@ export function PriceChart({
   indicators,
   onApi,
   desktop = false,
+  practice = false,
 }: {
   symbol: string;
   timeframe: number;
@@ -45,6 +46,7 @@ export function PriceChart({
   indicators: Indicators;
   onApi?: (api: ChartApi | null) => void;
   desktop?: boolean;
+  practice?: boolean;
 }) {
   const loadMarketHistory = useServerFn(getInhouseMarketHistory);
   const el = useRef<HTMLDivElement>(null);
@@ -127,7 +129,8 @@ export function PriceChart({
       const priceFormat = { type: "price" as const, precision, minMove: 1 / 10 ** precision };
       let series: ISeriesApi<SeriesType>;
       let history: Candle[];
-      try {
+      if (practice) history = buildPracticeHistory(symbol, timeframe, wide ? 320 : 160);
+      else try {
         const rows = await loadMarketHistory({ data: { symbol, limit: 3600 } });
         const grouped = new Map<number, Candle>();
         for (const row of rows) {
@@ -235,7 +238,7 @@ export function PriceChart({
       chart?.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, timeframe, kind, theme, indicators.ma, indicators.ema, desktop, loadMarketHistory]);
+  }, [symbol, timeframe, kind, theme, indicators.ma, indicators.ema, desktop, practice, loadMarketHistory]);
 
   const activeKey = trades
     .filter((t) => t.status === "active" && t.symbol === symbol)
