@@ -102,7 +102,9 @@ function AuthPage() {
       },
     });
     setBusy(false);
-    if (error) toast.error(error.message);
+    if (error?.code === 'over_email_send_rate_limit' || error?.message.toLowerCase().includes('email rate limit exceeded')) {
+      toast.error('Supabase has reached its email sending limit. Please wait before retrying; the hosted project needs custom SMTP for normal registration volume.');
+    } else if (error) toast.error(error.message);
     else if (!data.session) toast.success("Account created. Check your email and open the verification link before signing in.");
     else toast.success("Account created successfully.");
   };
