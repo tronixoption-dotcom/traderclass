@@ -38,6 +38,12 @@ export type Database = {
         Update: { id?: string; request_id?: string; user_id?: string; symbol?: string; inst_id?: string; direction?: string; asset?: string; stake?: number; entry_price?: number; entry_price_ts?: number; duration_seconds?: number; payout_multiplier?: number; reserved_profit?: number; expires_at?: string; status?: string; close_price?: number | null; close_candle_ts?: number | null; payout?: number; settled_at?: string | null; by_robot?: boolean; created_at?: string }
         Relationships: []
       }
+      inhouse_market_ticks: {
+        Row: { symbol: string; tick_at: string; price: number }
+        Insert: { symbol: string; tick_at: string; price: number }
+        Update: { symbol?: string; tick_at?: string; price?: number }
+        Relationships: []
+      }
       real_trading_reserves: {
         Row: { asset: string; available: number; reserved_profit: number; reserved_stakes: number; updated_at: string }
         Insert: { asset?: string; available?: number; reserved_profit?: number; reserved_stakes?: number; updated_at?: string }
@@ -288,6 +294,7 @@ export type Database = {
       review_funding_transaction: { Args: { p_transaction_id: string; p_approve: boolean; p_note?: string }; Returns: undefined }
       open_real_trade: { Args: { p_user_id: string; p_symbol: string; p_inst_id: string; p_direction: string; p_stake: number; p_duration_seconds: number; p_entry_price: number; p_entry_price_ts: number; p_request_id: string; p_by_robot?: boolean }; Returns: string }
       settle_real_trade: { Args: { p_trade_id: string; p_close_price: number; p_close_candle_ts: number }; Returns: string }
+      advance_inhouse_market: { Args: { p_symbol: string; p_base_price: number; p_volatility: number; p_until?: string }; Returns: { tick_at: string; price: number }[] }
       adjust_real_trading_reserve: { Args: { p_actor_id: string; p_delta: number; p_note: string }; Returns: number }
       has_role: {
         Args: {

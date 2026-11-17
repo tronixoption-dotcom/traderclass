@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { useServerFn } from '@tanstack/react-start';
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/PageHeader";
 import { InstrumentPicker } from "@/components/app/InstrumentPicker";
 import { pageHead } from "@/components/app/meta";
 import { robotSession, useStore, useTick } from "@/lib/store";
 import { DURATIONS, STAKE_STEPS, backtestWinRate, formatDuration, formatMoney, round2, stepValue } from "@/lib/trading";
-import { isOkxSymbol, OKX_INSTRUMENTS } from "@/lib/okx-market";
-import { hasFreshExchangeQuote } from "@/lib/feed";
+import { getInhouseMarketHistory } from '@/lib/real-trading.functions';
+import { hasFreshMarketQuote } from "@/lib/feed";
 import { actionAllowed } from "@/lib/admin-rules";
 import { cn } from "@/lib/utils";
 
@@ -85,48 +86,35 @@ function SignalIcon({ spinning }: { spinning: boolean }) {
 function RobotPage() {
   useTick();
   const { state, setRobot, accountMode, realBalance, realTrades, realSettings, siteSettings, user } = useStore();
+  const loadMarketHistory = useServerFn(getInhouseMarketHistory);
   const r = state.robot;
   const live = accountMode === 'real';
   const session = robotSession(state, realTrades);
   const [phase, setPhase] = useState<"idle" | "searching" | "found">("idle");
   const [winRate, setWinRate] = useState(0);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
-
   const analyze = async () => {
     if (phase === "searching") return;
     setPhase("searching");
-    const run = async () => {
-      try {
-      let closes: number[];
-      if (live) {
-        const instId = OKX_INSTRUMENTS[r.symbol];
-        if (!instId) throw new Error('Select a crypto market supported by OKX for live account analysis');
-        const response = await fetch(`https://www.okx.com/api/v5/market/history-candles?instId=${encodeURIComponent(instId)}&bar=1s&limit=120`, { cache: 'no-store' });
-        const payload = await response.json() as { code?: string; data?: string[][] };
-        if (!response.ok || payload.code !== '0' || !payload.data) throw new Error('OKX market history is temporarily unavailable');
-        closes = payload.data.filter((row) => row[8] === '1').map((row) => Number(row[4])).filter((price) => Number.isFinite(price) && price > 0).reverse();
-        if (closes.length < 10) throw new Error('Not enough recent OKX data to compare strategies');
-      } else throw new Error('Live OKX price history is unavailable');
+    try {
+      const rows = await loadMarketHistory({ data: { symbol: r.symbol, limit: 120 } });
+      const closes = rows.map((row) => row.price).filter((price) => Number.isFinite(price) && price > 0);
+      if (closes.length < 10) throw new Error('Not enough in-house price history to compare strategies');
       const trend = backtestWinRate(closes, "trend");
       const reverse = backtestWinRate(closes, "reverse");
       const strategy = trend >= reverse ? "trend" : "reverse";
       setWinRate(Math.max(trend, reverse));
       setRobot({ strategy });
       setPhase("found");
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Could not analyze recent prices');
-        setPhase('idle');
-      }
-    };
-    if (live) void run();
-    else timer.current = setTimeout(() => { void run(); }, 700);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not analyze recent prices');
+      setPhase('idle');
+    }
   };
 
   const locked = r.running;
   const pl = session.pl;
   const robotEnabled = actionAllowed(siteSettings, 'robot');
-  const liveReady = !!user && realSettings.enabled && isOkxSymbol(r.symbol) && hasFreshExchangeQuote(r.symbol) && r.stake >= realSettings.minStake && r.stake <= realSettings.maxStake && r.stake <= realBalance;
+  const liveReady = !!user && realSettings.enabled && hasFreshMarketQuote(r.symbol) && r.stake >= realSettings.minStake && (realSettings.maxStake <= 0 || r.stake <= realSettings.maxStake) && r.stake <= realBalance;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -176,7 +164,7 @@ function RobotPage() {
                 {phase === "idle" ? "Tap to search for a signal" : phase === "searching" ? "Searching for a signal.." : "Search for a signal"}
               </span>
               <span className="block text-[12px] leading-[17px] text-primary-foreground/75">
-                Recent price history: <b className="font-bold text-primary-foreground">OKX</b>
+                Recent price history: <b className="font-bold text-primary-foreground">In-house market</b>
               </span>
             </span>
           </button>
@@ -213,7 +201,7 @@ function RobotPage() {
           </div>
         </div>
 
-        {live && !liveReady && <p className="mt-3 rounded-lg bg-muted p-3 text-xs leading-5 text-muted-foreground">To start the live Robot, sign in, choose a supported OKX crypto market, wait for a live quote, and meet the configured stake limit with enough USDT.</p>}
+        {live && !liveReady && <p className="mt-3 rounded-lg bg-muted p-3 text-xs leading-5 text-muted-foreground">To start the live Robot, sign in, choose a market, wait for an in-house quote, and meet the configured stake settings with enough USDT.</p>}
         {!robotEnabled && <p className="mt-3 rounded-lg bg-muted p-3 text-xs leading-5 text-muted-foreground">Automated trading is currently paused by the administrator.</p>}
         <div className="mt-[17px] rounded-[12px] border border-input px-[15px] py-[4px]">
           {[
@@ -236,7 +224,7 @@ function RobotPage() {
           </div>
         </div>
         <p className="mt-[10px] text-center text-[10.5px] leading-[15px] text-muted-foreground">
-          Live account trades use your USDT balance and settle against OKX prices. This robot does not place orders on your OKX account. Historical results are not a prediction.
+          Live account trades use your USDT balance and settle against the in-house market engine. Historical results are not a prediction.
         </p>
       </div>
 

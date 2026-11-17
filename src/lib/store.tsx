@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { getQuote, hasFreshExchangeQuote, startFeed, subscribeFeed } from "./feed";
+import { getQuote, hasFreshMarketQuote, startFeed, subscribeFeed, setMarketQuote } from "./feed";
 import { supabase } from "@/integrations/supabase/client";
 import {
   robotStopReason,
@@ -10,8 +10,8 @@ import {
   type TradeStatus,
 } from "./trading";
 import { DEFAULT_SETTINGS, actionAllowed, type SiteSettings } from "./admin-rules";
-import { placeRealTrade, settleDueRealTrades } from "./real-trading.functions";
-import { isOkxSymbol } from "./okx-market";
+import { getInhouseMarketQuote, placeRealTrade, settleDueRealTrades } from "./real-trading.functions";
+import { SYMBOLS } from "./symbols";
 
 export type Trade = {
   id: string;
@@ -92,7 +92,7 @@ const StoreCtx = createContext<Ctx | null>(null);
 function mergeSaved(saved: Partial<AppState>): AppState {
   const base = freshState();
   const robot = { ...base.robot, ...(saved.robot ?? {}), running: false };
-  if (!isOkxSymbol(robot.symbol)) robot.symbol = 'BTCUSD';
+  if (!SYMBOLS.some((symbol) => symbol.id === robot.symbol)) robot.symbol = 'BTCUSD';
   return { ...base, userId: saved.userId ?? base.userId, name: saved.name ?? base.name, theme: saved.theme ?? base.theme, robot };
 }
 
@@ -110,6 +110,7 @@ export function robotSession(s: AppState, trades: Trade[] = []) {
 export function StoreProvider({ children }: { children: ReactNode }) {
   const openReal = useServerFn(placeRealTrade);
   const settleReal = useServerFn(settleDueRealTrades);
+  const loadInhouseQuote = useServerFn(getInhouseMarketQuote);
   const [state, setState] = useState<AppState>(freshState);
   const [hydrated, setHydrated] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -119,7 +120,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [realBalance, setRealBalance] = useState(0);
   const [realTrades, setRealTrades] = useState<Trade[]>([]);
-  const [realSettings, setRealSettings] = useState({ enabled: false, minStake: 1, maxStake: 100 });
+  const [realSettings, setRealSettings] = useState({ enabled: false, minStake: 1, maxStake: 0 });
   const realTradesRef = useRef(realTrades);
   realTradesRef.current = realTrades;
   const realSettingsRef = useRef(realSettings);
@@ -214,7 +215,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => { active = false; clearInterval(timer); };
   }, [user?.id, synced, settleReal]);
 
-  // Schedule live robot orders from the latest OKX quote.
+  useEffect(() => {
+    if (!user || !synced || !state.robot.running) return;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const quote = await loadInhouseQuote({ data: { symbol: ref.current.robot.symbol } });
+        if (active) setMarketQuote(ref.current.robot.symbol, quote.price, quote.bid, quote.ask, quote.timestamp);
+      } catch (error) { if (active) console.error('Refreshing in-house robot price failed', error); }
+    };
+    void refresh();
+    const timer = setInterval(() => { void refresh(); }, 1000);
+    return () => { active = false; clearInterval(timer); };
+  }, [user?.id, synced, state.robot.running, state.robot.symbol, loadInhouseQuote]);
+
+  // Schedule live robot orders from the latest in-house market quote.
   useEffect(() => {
     if (!hydrated) return;
     return subscribeFeed(() => {
@@ -241,7 +256,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             dir = r.strategy === 'trend' ? (up ? 'buy' : 'sell') : (up ? 'sell' : 'buy');
           }
         }
-        if (robotSubmitPending.current || !realSettingsRef.current.enabled || !isOkxSymbol(r.symbol) || !hasFreshExchangeQuote(r.symbol)) return;
+        if (robotSubmitPending.current || !realSettingsRef.current.enabled || !hasFreshMarketQuote(r.symbol)) return;
         robotSubmitPending.current = true;
         void (async () => {
           try {
@@ -344,9 +359,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           const config = { ...ref.current.robot, ...r };
           if (!user) { toast.error('Sign in before starting the live account robot'); return; }
           if (!realSettingsRef.current.enabled || !actionAllowed(settingsRef.current, 'trade') || !actionAllowed(settingsRef.current, 'robot')) { toast.error('Live account robot trading is currently unavailable'); return; }
-          if (!isOkxSymbol(config.symbol)) { toast.error('Choose a crypto market supported by OKX for live robot trading'); return; }
-          if (!hasFreshExchangeQuote(config.symbol)) { toast.error('Wait for a fresh OKX market price before starting'); return; }
-          if (config.stake < realSettingsRef.current.minStake || config.stake > realSettingsRef.current.maxStake || config.stake > realBalance) { toast.error('Check your live USDT balance and the configured stake limits'); return; }
+          if (!hasFreshMarketQuote(config.symbol)) { toast.error('Wait for a fresh in-house market price before starting'); return; }
+          if (config.stake < realSettingsRef.current.minStake || (realSettingsRef.current.maxStake > 0 && config.stake > realSettingsRef.current.maxStake) || config.stake > realBalance) { toast.error('Check your live USDT balance and configured stake settings'); return; }
         }
         if (r.running && !actionAllowed(settingsRef.current, 'robot')) { toast.error('Robot trading is currently paused'); return; }
         const cur = ref.current.robot;

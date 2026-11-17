@@ -1,4 +1,5 @@
 import { ClientOnly, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, Plus, Wallet } from "lucide-react";
 import { toast } from "sonner";
@@ -7,8 +8,8 @@ import { PriceChart, type ChartApi, type ChartKind, type Indicators } from "@/co
 import { ChartDrawings, type Drawing, type Tool } from "@/components/app/ChartDrawings";
 import { AccountIcon, ChartTypeIcons, SymbolIcon, TVMark, ToolIcons, ToolbarIcons } from "@/components/app/icons";
 import { useStore, useTick } from "@/lib/store";
-import { clearExchangeQuote, getQuote, hasFreshExchangeQuote, setExchangeQuote } from "@/lib/feed";
-import { isOkxSymbol, OKX_INSTRUMENTS } from "@/lib/okx-market";
+import { clearMarketQuote, getQuote, hasFreshMarketQuote, setMarketQuote } from "@/lib/feed";
+import { getInhouseMarketQuote } from "@/lib/real-trading.functions";
 import { getSymbol } from "@/lib/symbols";
 import { InstrumentPicker } from "@/components/app/InstrumentPicker";
 import { fmtPrice } from "@/lib/format";
@@ -40,7 +41,7 @@ const EMOJIS = ["😀", "😎", "🚀", "🔥", "💰", "📈", "📉", "⚠️"
 
 export function MarketView({ desktop = false, overlay }: { desktop?: boolean; overlay?: ReactNode }) {
   useTick();
-  const { state, accountMode, realTrades } = useStore();
+  const { state, accountMode, realTrades, user } = useStore();
   const [symbol, setSymbol] = useState("BTCUSD");
   const [tf, setTf] = useState(900);
   const [kind, setKind] = useState<ChartKind>("candles");
@@ -58,39 +59,23 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
   const setDrawings = useCallback((fn: (d: Drawing[]) => Drawing[]) => setDrawingsMap((m) => ({ ...m, [key]: fn(m[key] ?? []) })), [key]);
   const onApi = useCallback((a: ChartApi | null) => setApi(a), []);
   const tfLabel = INTERVALS.find((i) => i.s === tf)?.label ?? "";
-  const [okxConnected, setOkxConnected] = useState(false);
+  const loadMarketQuote = useServerFn(getInhouseMarketQuote);
 
   useEffect(() => {
-    if (accountMode !== 'real' || !isOkxSymbol(symbol)) {
-      setOkxConnected(false);
-      clearExchangeQuote(symbol);
-      return;
-    }
-    let socket: WebSocket | null = null;
-    let retry: ReturnType<typeof setTimeout> | undefined;
-    let stopped = false;
-    const connect = () => {
-      if (stopped) return;
-      socket = new WebSocket('wss://ws.okx.com/ws/v5/public');
-      socket.onopen = () => {
-        setOkxConnected(true);
-        socket?.send(JSON.stringify({ op: 'subscribe', args: [{ channel: 'tickers', instId: OKX_INSTRUMENTS[symbol] }] }));
-      };
-      socket.onmessage = (event) => {
-        try {
-          const message = JSON.parse(String(event.data)) as { data?: { last?: string; bidPx?: string; askPx?: string; ts?: string }[] };
-          const quote = message.data?.[0];
-          if (!quote) return;
-          const last = Number(quote.last); const bid = Number(quote.bidPx) || last; const ask = Number(quote.askPx) || last; const timestamp = Number(quote.ts);
-          setExchangeQuote(symbol, last, bid, ask, timestamp);
-        } catch { /* Ignore non-data OKX WebSocket messages. */ }
-      };
-      socket.onerror = () => setOkxConnected(false);
-      socket.onclose = () => { setOkxConnected(false); if (!stopped) retry = setTimeout(connect, 1500); };
+    if (accountMode !== 'real' || !user) { clearMarketQuote(symbol); return; }
+    let active = true;
+    const refresh = async () => {
+      try {
+        const quote = await loadMarketQuote({ data: { symbol } });
+        if (active) setMarketQuote(symbol, quote.price, quote.bid, quote.ask, quote.timestamp);
+      } catch (error) {
+        if (active) console.error('In-house market quote refresh failed', error);
+      }
     };
-    connect();
-    return () => { stopped = true; if (retry) clearTimeout(retry); socket?.close(); setOkxConnected(false); clearExchangeQuote(symbol); };
-  }, [accountMode, symbol]);
+    void refresh();
+    const timer = setInterval(() => { void refresh(); }, 1000);
+    return () => { active = false; clearInterval(timer); };
+  }, [accountMode, symbol, user?.id, loadMarketQuote]);
 
   const snapshot = () => {
     if (!api) return;
@@ -114,7 +99,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex h-[45px] shrink-0 items-center justify-between px-[8.5px] md:h-[60px] md:px-[20px]">
         <div className="flex min-w-0 items-center gap-3">{!desktop && <div className="scale-75"><AdminEntry /></div>}<InstrumentPicker symbol={symbol} onChange={setSymbol} liveOnly={accountMode === 'real'} /></div>
-        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${okxConnected && hasFreshExchangeQuote(symbol) ? 'bg-success-soft text-success' : 'bg-muted text-muted-foreground'}`}>{isOkxSymbol(symbol) ? okxConnected && hasFreshExchangeQuote(symbol) ? 'OKX LIVE' : 'CONNECTING OKX' : 'UNSUPPORTED MARKET'}</span>
+        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${hasFreshMarketQuote(symbol) ? 'bg-success-soft text-success' : 'bg-muted text-muted-foreground'}`}>{hasFreshMarketQuote(symbol) ? 'IN-HOUSE MARKET' : 'CONNECTING'}</span>
         <AccountPicker />
       </div>
 
@@ -237,7 +222,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
           {/* Chart pane */}
           <div className="relative min-w-0 flex-1 overflow-hidden rounded-l-[5px] bg-background">
             <ClientOnly fallback={<div className="absolute inset-0 animate-pulse bg-muted" />}>
-              <PriceChart desktop={desktop} symbol={symbol} timeframe={tf} kind={kind} theme={state.theme} trades={realTrades} indicators={indicators} onApi={onApi} marketSource="okx" />
+              <PriceChart desktop={desktop} symbol={symbol} timeframe={tf} kind={kind} theme={state.theme} trades={realTrades} indicators={indicators} onApi={onApi} />
               <ChartDrawings
                 api={api}
                 tool={tool}
@@ -435,13 +420,12 @@ function useTicket(symbol: string) {
   };
   const trade = async (direction: "buy" | "sell") => {
     if (!realSettings.enabled) { toast.error('Live account trading is currently paused by the administrator'); return; }
-    if (!isOkxSymbol(symbol)) { toast.error('Live trading is only available for supported OKX crypto markets'); return; }
-    if (!hasFreshExchangeQuote(symbol)) { toast.error('Waiting for a fresh OKX market quote'); return; }
-    if (stake < realSettings.minStake || stake > realSettings.maxStake) { toast.error(`Stake must be between ${realSettings.minStake} and ${realSettings.maxStake} USDT`); return; }
+    if (!hasFreshMarketQuote(symbol)) { toast.error('Waiting for a fresh in-house market quote'); return; }
+    if (stake < realSettings.minStake || (realSettings.maxStake > 0 && stake > realSettings.maxStake)) { toast.error(`Minimum stake is ${realSettings.minStake} USDT${realSettings.maxStake > 0 ? `; maximum is ${realSettings.maxStake} USDT` : ''}`); return; }
     if (stake > realBalance) { toast.error('Insufficient available USDT balance'); return; }
     const error = await submitRealTrade({ symbol, direction, stake, duration });
     if (error) toast.error(error);
-    else toast.success(`${direction.toUpperCase()} ${symbol} · ${stake} USDT · ${formatDuration(duration)} · OKX price`);
+    else toast.success(`${direction.toUpperCase()} ${symbol} · ${stake} USDT · ${formatDuration(duration)} · in-house price`);
   };
   return {
     duration,
@@ -449,7 +433,7 @@ function useTicket(symbol: string) {
     stakeText,
     currency: 'USDT',
     real: true,
-    canTrade: siteSettings.trading_enabled && realSettings.enabled && isOkxSymbol(symbol) && hasFreshExchangeQuote(symbol) && stake >= realSettings.minStake && stake <= realSettings.maxStake && stake <= realBalance,
+    canTrade: siteSettings.trading_enabled && realSettings.enabled && hasFreshMarketQuote(symbol) && stake >= realSettings.minStake && (realSettings.maxStake <= 0 || stake <= realSettings.maxStake) && stake <= realBalance,
     durationDown: () => setDuration(stepValue(DURATIONS, duration, -1)),
     durationUp: () => setDuration(stepValue(DURATIONS, duration, 1)),
     stakeDown: () => updateStake(stepValue(STAKE_STEPS, stake, -1)),
@@ -498,8 +482,8 @@ function TradePanel({ symbol }: { symbol: string }) {
         <span className="tabular text-[13px] font-bold text-success">{t.real ? `${payoutFor(t.stake).toFixed(2)} USDT` : `$${payoutFor(t.stake).toFixed(2)}`}</span>
       </div>
       <div className="mt-[3.5px] grid grid-cols-2 gap-[9px]">
-        <TradeButton variant="sell" label="SELL" price={t.real && !hasFreshExchangeQuote(symbol) ? "?" : q.bid.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("sell")} />
-        <TradeButton variant="buy" label="BUY" price={t.real && !hasFreshExchangeQuote(symbol) ? "?" : q.ask.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("buy")} />
+        <TradeButton variant="sell" label="SELL" price={t.real && !hasFreshMarketQuote(symbol) ? "?" : q.bid.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("sell")} />
+        <TradeButton variant="buy" label="BUY" price={t.real && !hasFreshMarketQuote(symbol) ? "?" : q.ask.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("buy")} />
       </div>
     </div>
   );
@@ -593,10 +577,10 @@ function ManualTrade({ symbol }: { symbol: string }) {
         <span className="tabular text-[15px] font-bold text-success">{t.real ? `${payoutFor(t.stake).toFixed(2)} USDT` : `$${payoutFor(t.stake).toFixed(2)}`}</span>
       </div>
       <div className="mt-[10px] space-y-[12px]">
-        <BigTradeButton variant="sell" price={t.real && !hasFreshExchangeQuote(symbol) ? "?" : q.bid.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("sell")} />
-        <BigTradeButton variant="buy" price={t.real && !hasFreshExchangeQuote(symbol) ? "?" : q.ask.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("buy")} />
+        <BigTradeButton variant="sell" price={t.real && !hasFreshMarketQuote(symbol) ? "?" : q.bid.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("sell")} />
+        <BigTradeButton variant="buy" price={t.real && !hasFreshMarketQuote(symbol) ? "?" : q.ask.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("buy")} />
       </div>
-      <p className="mt-[14px] px-[4px] text-[11px] leading-[16px] text-muted-foreground">Live account contracts settle against completed OKX 1-second candles; orders are not placed on OKX.</p>
+      <p className="mt-[14px] px-[4px] text-[11px] leading-[16px] text-muted-foreground">Live contracts settle against the in-house market price engine.</p>
     </aside>
   );
 }

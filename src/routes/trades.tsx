@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { SymbolIcon, TradesIcon } from "@/components/app/icons";
 import { pageHead } from "@/components/app/meta";
 import { useStore, useTick, type Trade } from "@/lib/store";
-import { getPrice, hasFreshExchangeQuote } from "@/lib/feed";
+import { getPrice, hasFreshMarketQuote } from "@/lib/feed";
 import { fmtPrice } from "@/lib/format";
 import { formatDuration, payoutFor } from "@/lib/trading";
 import { cn } from "@/lib/utils";
@@ -73,7 +73,7 @@ function ActiveRow({ t }: { t: Trade }) {
   const now = Date.now();
   const left = Math.max(0, Math.ceil((t.expiresAt - now) / 1000));
   const pct = Math.min(100, ((now - t.openedAt) / (t.expiresAt - t.openedAt)) * 100);
-  const price = hasFreshExchangeQuote(t.symbol) ? getPrice(t.symbol) : undefined;
+  const price = hasFreshMarketQuote(t.symbol) ? getPrice(t.symbol) : undefined;
   const winning = price === undefined ? null : t.direction === "buy" ? price > t.entry : price < t.entry;
   return (
     <div className="rounded-[14px] border border-border px-[13px] py-[11px]">
@@ -82,11 +82,11 @@ function ActiveRow({ t }: { t: Trade }) {
         <div className="flex-1">
           <div className="flex items-center gap-[6px] text-[13.5px] font-bold">
             {t.symbol} <DirTag d={t.direction} />
-            <span className="text-[10px] font-medium text-muted-foreground">Live · OKX prices</span>
+            <span className="text-[10px] font-medium text-muted-foreground">Live · in-house prices</span>
             {t.byRobot && <span className="text-[10.5px] font-normal text-muted-foreground">Robot</span>}
           </div>
           <div className="tabular text-[11.5px] text-muted-foreground">
-            Entry {fmtPrice(t.symbol, t.entry)} · Now {price === undefined ? 'OKX price unavailable' : fmtPrice(t.symbol, price)}
+            Entry {fmtPrice(t.symbol, t.entry)} · Now {price === undefined ? 'In-house price unavailable' : fmtPrice(t.symbol, price)}
           </div>
         </div>
         <div className="text-right">
@@ -111,7 +111,7 @@ function HistoryRow({ t }: { t: Trade }) {
       <div className="flex-1">
         <div className="flex items-center gap-[6px] text-[13.5px] font-bold">
           {t.symbol} <DirTag d={t.direction} />
-          <span className="text-[10px] font-medium text-muted-foreground">Live · OKX prices</span>
+          <span className="text-[10px] font-medium text-muted-foreground">Live · in-house prices</span>
         </div>
         <div className="tabular text-[11.5px] text-muted-foreground">
           {fmtPrice(t.symbol, t.entry)} → {fmtPrice(t.symbol, t.close ?? t.entry)} · USDT {t.stake} · {formatDuration(t.duration)}

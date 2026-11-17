@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 import type { Database } from '@/integrations/supabase/types';
 import { requireStaff } from './admin-session.server';
-import { getOkxEntryQuote, getOkxSettlementCandle, okxInstrument } from './okx-market.server';
+import { SYMBOLS } from './symbols';
 
 function serviceDatabase() {
   const url = process.env['SUPABASE_URL'];
@@ -15,7 +15,39 @@ function serviceDatabase() {
 
 const tradeInput = z.object({
   requestId: z.string().uuid(), symbol: z.string().max(16), direction: z.enum(['buy', 'sell']),
-  stake: z.number().positive().max(100000), duration: z.number().int(), byRobot: z.boolean().optional().default(false),
+  stake: z.number().positive(), duration: z.number().int(), byRobot: z.boolean().optional().default(false),
+});
+
+function marketSpec(symbol: string) {
+  const spec = SYMBOLS.find((item) => item.id === symbol);
+  if (!spec) throw new Error('Choose a listed market');
+  return spec;
+}
+
+async function inhouseQuote(db: ReturnType<typeof serviceDatabase>, symbol: string, until?: string) {
+  const spec = marketSpec(symbol);
+  const { data, error } = await db.rpc('advance_inhouse_market', {
+    p_symbol: symbol, p_base_price: spec.base, p_volatility: spec.vol,
+    ...(until ? { p_until: until } : {}),
+  });
+  const tick = data?.[0];
+  if (error || !tick) throw new Error(error?.message || 'In-house market price is unavailable');
+  return { price: Number(tick.price), timestamp: Date.parse(tick.tick_at), candleTs: Date.parse(tick.tick_at) };
+}
+
+export const getInhouseMarketQuote = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ symbol: z.string().max(16) }).parse(value)).handler(async ({ data }) => {
+  const db = serviceDatabase();
+  const quote = await inhouseQuote(db, data.symbol);
+  const spec = marketSpec(data.symbol);
+  return { ...quote, bid: quote.price - spec.spread / 2, ask: quote.price + spec.spread / 2 };
+});
+
+export const getInhouseMarketHistory = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ symbol: z.string().max(16), limit: z.number().int().min(10).max(3600) }).parse(value)).handler(async ({ data }) => {
+  const db = serviceDatabase();
+  await inhouseQuote(db, data.symbol);
+  const { data: rows, error } = await db.from('inhouse_market_ticks').select('tick_at,price').eq('symbol', data.symbol).order('tick_at', { ascending: false }).limit(data.limit);
+  if (error) throw new Error('Could not load in-house price history');
+  return (rows ?? []).reverse().map((row) => ({ time: Math.floor(Date.parse(row.tick_at) / 1000), price: Number(row.price) }));
 });
 
 export const getRealTradingData = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
@@ -25,17 +57,15 @@ export const getRealTradingData = createServerFn({ method: 'GET' }).middleware([
     context.supabase.from('site_settings').select('real_trading_enabled,real_min_stake,real_max_stake').eq('id', true).maybeSingle(),
   ]);
   if (wallet.error || trades.error || settings.error) throw new Error('Could not load the real account');
-  return { balance: Number(wallet.data?.balance ?? 0), trades: trades.data ?? [], settings: { enabled: settings.data?.real_trading_enabled ?? false, minStake: Number(settings.data?.real_min_stake ?? 1), maxStake: Number(settings.data?.real_max_stake ?? 100) } };
+  return { balance: Number(wallet.data?.balance ?? 0), trades: trades.data ?? [], settings: { enabled: settings.data?.real_trading_enabled ?? false, minStake: Number(settings.data?.real_min_stake ?? 1), maxStake: Number(settings.data?.real_max_stake ?? 0) } };
 });
 
 export const placeRealTrade = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => tradeInput.parse(value)).handler(async ({ data, context }) => {
-  const instId = okxInstrument(data.symbol);
   if (![5, 10, 15, 30, 60, 120, 300].includes(data.duration)) throw new Error('Choose a supported trade duration');
-  const quote = await getOkxEntryQuote(data.symbol);
-  if (quote.instId !== instId) throw new Error('Instrument mismatch');
   const db = serviceDatabase();
+  const quote = await inhouseQuote(db, data.symbol);
   const { data: tradeId, error } = await db.rpc('open_real_trade', {
-    p_user_id: context.userId, p_symbol: data.symbol, p_inst_id: instId, p_direction: data.direction,
+    p_user_id: context.userId, p_symbol: data.symbol, p_inst_id: data.symbol, p_direction: data.direction,
     p_stake: data.stake, p_duration_seconds: data.duration, p_entry_price: quote.price,
     p_entry_price_ts: quote.timestamp, p_request_id: data.requestId, p_by_robot: data.byRobot,
   });
@@ -48,12 +78,12 @@ export const placeRealTrade = createServerFn({ method: 'POST' }).middleware([req
 
 export const settleDueRealTrades = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const db = serviceDatabase();
-  const { data: due, error } = await db.from('real_trades').select('id,inst_id,expires_at').eq('user_id', context.userId).eq('status', 'open').lte('expires_at', new Date().toISOString()).order('expires_at').limit(30);
+  const { data: due, error } = await db.from('real_trades').select('id,symbol,expires_at').eq('user_id', context.userId).eq('status', 'open').lte('expires_at', new Date().toISOString()).order('expires_at').limit(30);
   if (error) throw new Error('Could not check for expired real trades');
   for (const trade of due ?? []) {
-    const candle = await getOkxSettlementCandle(trade.inst_id, trade.expires_at).catch(() => null);
-    if (!candle) continue;
-    const { error: settlementError } = await db.rpc('settle_real_trade', { p_trade_id: trade.id, p_close_price: candle.close, p_close_candle_ts: candle.candleTs });
+    const quote = await inhouseQuote(db, trade.symbol, trade.expires_at).catch(() => null);
+    if (!quote) continue;
+    const { error: settlementError } = await db.rpc('settle_real_trade', { p_trade_id: trade.id, p_close_price: quote.price, p_close_candle_ts: quote.candleTs });
     if (settlementError) {
       console.error(`Could not settle live trade ${trade.id}:`, settlementError);
       throw new Error(`Could not settle an expired live trade: ${settlementError.message}`);
@@ -65,7 +95,7 @@ export const settleDueRealTrades = createServerFn({ method: 'POST' }).middleware
     db.from('site_settings').select('real_trading_enabled,real_min_stake,real_max_stake').eq('id', true).maybeSingle(),
   ]);
   if (wallet.error || trades.error || settings.error) throw new Error('Could not refresh real account');
-  return { balance: Number(wallet.data?.balance ?? 0), trades: trades.data ?? [], settings: { enabled: settings.data?.real_trading_enabled ?? false, minStake: Number(settings.data?.real_min_stake ?? 1), maxStake: Number(settings.data?.real_max_stake ?? 100) } };
+  return { balance: Number(wallet.data?.balance ?? 0), trades: trades.data ?? [], settings: { enabled: settings.data?.real_trading_enabled ?? false, minStake: Number(settings.data?.real_min_stake ?? 1), maxStake: Number(settings.data?.real_max_stake ?? 0) } };
 });
 
 export const getRealTradingAdmin = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {

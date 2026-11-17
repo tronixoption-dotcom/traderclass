@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SYMBOLS, SYMBOL_CATEGORIES, getSymbol } from "./symbols";
-import { getQuote, hasFreshExchangeQuote, setExchangeQuote } from "./feed";
+import { getQuote, hasFreshMarketQuote, setMarketQuote } from "./feed";
 
 describe("live instrument catalog", () => {
   it("offers a large list with unique symbols across every market category", () => {
@@ -14,13 +14,13 @@ describe("live instrument catalog", () => {
     }
   });
 
-  it("shows only fresh exchange quotes for live instruments", () => {
+  it("shows only fresh in-house quotes for in-house markets", () => {
     const symbol = "BTCUSD";
-    expect(hasFreshExchangeQuote(symbol)).toBe(false);
+    expect(hasFreshMarketQuote(symbol)).toBe(false);
     expect(Number.isNaN(getQuote(symbol).mid)).toBe(true);
     const now = Date.now();
-    setExchangeQuote(symbol, 50000, 49999, 50001, now);
-    expect(hasFreshExchangeQuote(symbol)).toBe(true);
+    setMarketQuote(symbol, 50000, 49999, 50001, now);
+    expect(hasFreshMarketQuote(symbol)).toBe(true);
     expect(getQuote(symbol)).toMatchObject({ mid: 50000, bid: 49999, ask: 50001 });
     expect(Number.isInteger(getSymbol(symbol).decimals)).toBe(true);
   });

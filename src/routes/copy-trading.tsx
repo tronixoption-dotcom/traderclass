@@ -49,7 +49,7 @@ function CopyTradingPage() {
             </div>
           );
         })}
-        <InfoNote className="pt-[10px]">Selecting a preset starts the Robot with your configured stake and risk limits. Strategies follow simple price rules; they do not copy a person or predict results. Live mode is limited to supported OKX crypto markets.</InfoNote>
+        <InfoNote className="pt-[10px]">Selecting a preset starts the Robot with your configured stake and risk limits. Strategies follow simple price rules; they do not copy a person or predict results. Live mode uses the in-house market engine for all listed instruments.</InfoNote>
       </div>
     </div>
   );
