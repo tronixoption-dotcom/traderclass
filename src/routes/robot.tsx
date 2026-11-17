@@ -123,7 +123,7 @@ function RobotPage() {
     <div className="flex min-h-full flex-col">
       <PageHeader title="Robot Settings" />
       <div className="flex-1 px-[21px] pt-[14px] pb-[20px] lg:px-[18px] lg:[zoom:1.12]">
-        <SectionTitle title={live ? 'Live USDT account' : `Demo ${state.active} account`} sub={`${formatMoney(live ? realBalance : state.balances[state.active], live ? 'USDT' : state.active)} available for trading`} />
+        <SectionTitle title={live ? 'Real Account' : 'Demo Account'} sub={`${formatMoney(live ? realBalance : state.balances.USDT, 'USDT')} available for trading`} />
 
         <div className="mt-[24px]">
           <SectionTitle title="Order parameters" sub="Applied to each order" />
@@ -210,7 +210,7 @@ function RobotPage() {
           {[
             { k: "Status", v: r.running ? "Running" : "Stopped", c: r.running ? "text-success" : "text-muted-foreground" },
             { k: "Trades", v: String(session.trades), c: "" },
-            { k: "Profits", v: formatMoney(session.profits, live ? 'USDT' : state.active), c: "text-success" },
+            { k: "Profits", v: formatMoney(session.profits, 'USDT'), c: "text-success" },
             { k: "Losses", v: String(session.losses), c: "text-destructive" },
           ].map((row) => (
             <div key={row.k} className="flex h-[35px] items-center justify-between border-b border-border text-[12.5px]">
@@ -222,7 +222,7 @@ function RobotPage() {
             <span className="font-semibold">Cumulative P/L</span>
             <span className={cn("tabular text-[13.5px] font-semibold", pl < 0 ? "text-destructive" : "text-success")}>
               {pl < 0 ? "-" : ""}
-              {formatMoney(Math.abs(pl), live ? 'USDT' : state.active)}
+              {formatMoney(Math.abs(pl), 'USDT')}
             </span>
           </div>
         </div>

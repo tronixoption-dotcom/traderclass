@@ -1,9 +1,9 @@
 import { ClientOnly, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronDown, Plus, Wallet } from "lucide-react";
+import { Check, ChevronDown, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PriceChart, type ChartApi, type ChartKind, type Indicators } from "@/components/app/PriceChart";
 import { ChartDrawings, type Drawing, type Tool } from "@/components/app/ChartDrawings";
 import { AccountIcon, ChartTypeIcons, SymbolIcon, TVMark, ToolIcons, ToolbarIcons } from "@/components/app/icons";
@@ -355,36 +355,33 @@ function ChartLegend({ symbol }: { symbol: string }) {
 }
 
 function AccountPicker() {
-  const { state, accountMode, realBalance, setActive, setAccountMode } = useStore();
+  const { accountMode, realBalance, state, setAccountMode } = useStore();
   const real = accountMode === 'real';
-  const balance = real ? realBalance : state.balances[state.active];
-  const currency = real ? 'USDT' : state.active;
+  const balance = real ? realBalance : state.balances.USDT;
+  const currency = 'USDT';
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="flex h-[41.5px] items-center rounded-full border border-border pl-[9.5px] pr-[14px] text-left hover:bg-muted md:h-[50px] md:pl-[14px] md:pr-[18px]">
           <AccountIcon account={currency} className="md:size-[34px]" />
           <span className="ml-[11px] mr-[10px] block md:ml-[14px] md:mr-[14px]">
-            <span className="block text-[10px] leading-[13px] text-muted-foreground md:text-[12px] md:leading-[16px]">{real ? 'Live USDT Account' : `Demo ${currency} Account`}</span>
+            <span className="block text-[10px] leading-[13px] text-muted-foreground md:text-[12px] md:leading-[16px]">{real ? 'Real Account' : 'Demo Account'}</span>
             <span className="tabular block text-[14.5px] font-bold leading-[18px] md:text-[15.5px] md:leading-[20px]">{formatMoney(balance, currency)}</span>
           </span>
           <ChevronDown className="size-[18px] text-muted-foreground" strokeWidth={1.8} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
-        {(['USD', 'USDT'] as const).map((id) => <DropdownMenuItem key={id} onClick={() => { setAccountMode('demo'); setActive(id); }} className={`gap-2.5 py-2 ${!real && id === state.active ? 'bg-primary-soft' : ''}`}>
-          <AccountIcon account={id} />
-          <div className="flex-1"><div className="text-[13px] font-medium">Demo {id} Account</div><div className="tabular text-[11px] text-muted-foreground">{formatMoney(state.balances[id], id)}</div></div>
-          {!real && id === state.active && <Check className="size-4 text-primary" />}
-        </DropdownMenuItem>)}
-        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setAccountMode('demo')} className={`gap-2.5 py-2 ${!real ? 'bg-primary-soft' : ''}`}>
+          <AccountIcon account="USDT" />
+          <div className="flex-1"><div className="text-[13px] font-medium">Demo Account</div><div className="tabular text-[11px] text-muted-foreground">{formatMoney(state.balances.USDT, 'USDT')}</div></div>
+          {!real && <Check className="size-4 text-primary" />}
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setAccountMode('real')} className={`gap-2.5 py-2 ${real ? 'bg-primary-soft' : ''}`}>
           <AccountIcon account="USDT" />
-          <div className="flex-1"><div className="text-[13px] font-medium">Live USDT Account</div><div className="tabular text-[11px] text-muted-foreground">{formatMoney(realBalance, 'USDT')}</div></div>
+          <div className="flex-1"><div className="text-[13px] font-medium">Real Account</div><div className="tabular text-[11px] text-muted-foreground">{formatMoney(realBalance, 'USDT')}</div></div>
           {real && <Check className="size-4 text-primary" />}
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild><Link to="/deposit" className="gap-2.5 py-2 text-[13px] font-medium text-primary"><Wallet className="size-4" /> Deposit</Link></DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

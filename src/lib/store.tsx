@@ -94,7 +94,6 @@ type Ctx = {
   realTrades: Trade[];
   realSettings: { enabled: boolean; minStake: number; maxStake: number };
   placeTrade: (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean }) => string | null;
-  setActive: (account: AccountId) => void;
   setAccountMode: (mode: 'demo' | 'real') => void;
   submitRealTrade: (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean }) => Promise<string | null>;
   setTheme: (t: "light" | "dark") => void;
@@ -109,7 +108,7 @@ function mergeSaved(saved: Partial<AppState>): AppState {
   const base = freshState();
   const robot = { ...base.robot, ...(saved.robot ?? {}), running: false };
   if (!SYMBOLS.some((symbol) => symbol.id === robot.symbol)) robot.symbol = 'BTCUSD';
-  return { ...base, ...saved, userId: saved.userId ?? base.userId, name: saved.name ?? base.name, theme: saved.theme ?? base.theme, robot };
+  return { ...base, ...saved, active: 'USDT', userId: saved.userId ?? base.userId, name: saved.name ?? base.name, theme: saved.theme ?? base.theme, robot };
 }
 
 /** Robot trades in the current session and their combined profit or loss. */
@@ -412,8 +411,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       realSettings,
       submitRealTrade,
       placeTrade,
-      setActive: (account) => commit({ ...ref.current, active: account }),
-      setAccountMode: (mode) => commit({ ...ref.current, accountMode: mode, robot: { ...ref.current.robot, running: false } }),
+      setAccountMode: (mode) => commit({ ...ref.current, accountMode: mode, active: 'USDT', robot: { ...ref.current.robot, running: false } }),
       setTheme: (t) => commit({ ...ref.current, theme: t }),
       setName: (n) => {
         commit({ ...ref.current, name: n });
