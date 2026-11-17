@@ -2,6 +2,9 @@
 -- and the funded payout reserve remain the natural limits.
 ALTER TABLE public.site_settings DROP CONSTRAINT IF EXISTS site_settings_real_min_stake_check;
 ALTER TABLE public.site_settings DROP CONSTRAINT IF EXISTS site_settings_real_max_stake_check;
+-- The original multi-column inline check was assigned PostgreSQL's generic
+-- name and also enforced real_max_stake <= 100000.
+ALTER TABLE public.site_settings DROP CONSTRAINT IF EXISTS site_settings_check;
 ALTER TABLE public.site_settings ADD CONSTRAINT site_settings_real_min_stake_check CHECK (real_min_stake > 0);
 ALTER TABLE public.site_settings ADD CONSTRAINT site_settings_real_max_stake_check CHECK (real_max_stake=0 OR real_max_stake >= real_min_stake);
 ALTER TABLE public.site_settings ALTER COLUMN real_max_stake SET DEFAULT 0;
