@@ -147,8 +147,11 @@ export type Database = {
           real_max_stake: number
           real_min_stake: number
           real_monthly_loss_cap: number
+          real_pricing_model: string
+          real_rtp_target_percent: number
           real_trading_enabled: boolean
           real_user_exposure_cap: number
+          real_win_rate_target_percent: number
           real_weekly_loss_cap: number
           robot_enabled: boolean
           trading_enabled: boolean
@@ -168,8 +171,11 @@ export type Database = {
             real_max_stake?: number
             real_min_stake?: number
           real_monthly_loss_cap?: number
+          real_pricing_model?: string
+          real_rtp_target_percent?: number
             real_trading_enabled?: boolean
           real_user_exposure_cap?: number
+          real_win_rate_target_percent?: number
           real_weekly_loss_cap?: number
           robot_enabled?: boolean
           trading_enabled?: boolean
@@ -189,8 +195,11 @@ export type Database = {
             real_max_stake?: number
             real_min_stake?: number
           real_monthly_loss_cap?: number
+          real_pricing_model?: string
+          real_rtp_target_percent?: number
             real_trading_enabled?: boolean
           real_user_exposure_cap?: number
+          real_win_rate_target_percent?: number
           real_weekly_loss_cap?: number
           robot_enabled?: boolean
           trading_enabled?: boolean

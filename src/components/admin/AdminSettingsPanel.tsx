@@ -1,28 +1,21 @@
 import { Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import type { SiteSettings } from '@/lib/admin-rules';
 
-type TradeRow = { status: string; stake: number; payout: number | null };
-
-export function AdminSettingsPanel({ settings, setSettings, trades, audit, busy, onSave, onPaymentMethods }:{
+export function AdminSettingsPanel({ settings, setSettings, audit, busy, onSave, onPaymentMethods }:{
   settings: SiteSettings;
   setSettings: (next: SiteSettings) => void;
-  trades: TradeRow[];
   audit: { id: string; action: string; created_at: string }[];
   busy: boolean;
   onSave: () => void;
   onPaymentMethods: () => void;
 }) {
-  const settled = trades.filter((trade) => trade.status !== 'open');
-  const totalStake = settled.reduce((sum, trade) => sum + Number(trade.stake), 0);
-  const totalPayout = settled.reduce((sum, trade) => sum + Number(trade.payout ?? 0), 0);
-  const roi = totalStake ? (totalPayout - totalStake) / totalStake * 100 : null;
-  const rtp = totalStake ? totalPayout / totalStake * 100 : null;
-  const winRate = settled.length ? settled.filter((trade) => trade.status === 'won').length / settled.length * 100 : null;
   const patchSettings = (patch: Partial<SiteSettings>) => setSettings({ ...settings, ...patch });
+  const impliedMultiplier = settings.real_win_rate_target_percent > 0 ? settings.real_rtp_target_percent / settings.real_win_rate_target_percent : 0;
   const numberField = (key: 'real_min_stake' | 'real_max_stake' | 'real_daily_loss_cap' | 'real_weekly_loss_cap' | 'real_monthly_loss_cap' | 'real_market_exposure_cap' | 'real_user_exposure_cap', label: string, help?: string) => (
     <label className="space-y-2 text-sm font-medium" key={key}>{label}<Input type="number" min="0" step="any" value={settings[key]} onChange={(event) => patchSettings({ [key]: Number(event.target.value) || 0 })}/>{help && <span className="block text-xs font-normal text-muted-foreground">{help}</span>}</label>
   );
@@ -37,14 +30,23 @@ export function AdminSettingsPanel({ settings, setSettings, trades, audit, busy,
     </section>
 
     <section className="space-y-4 rounded-xl border border-border bg-card p-4">
-      <div><h2 className="text-lg font-semibold">Core economics</h2><p className="mt-1 text-sm text-muted-foreground">These are observed results from up to 500 recent settled real trades. They are reporting metrics, not outcome controls.</p></div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="Observed RTP" value={rtp} suffix="%"/>
-        <Metric label="Observed house edge" value={roi === null ? null : -roi} suffix="%"/>
-        <Metric label="Observed player ROI" value={roi} suffix="%"/>
-        <Metric label="Observed win rate" value={winRate} suffix="%"/>
+      <div><h2 className="text-lg font-semibold">Core economics</h2><p className="mt-1 text-sm text-muted-foreground">These settings price wins for new trades. The OKX market still decides whether each trade wins, loses, or draws.</p></div>
+      <label className="block max-w-sm space-y-2 text-sm font-medium">Pricing model preset<Select value={settings.real_pricing_model} onValueChange={(value) => {
+        if (value === 'standard') patchSettings({ real_pricing_model: 'standard', real_rtp_target_percent: 95, real_win_rate_target_percent: 55.8824 });
+        else if (value === 'conservative') patchSettings({ real_pricing_model: 'conservative', real_rtp_target_percent: 90, real_win_rate_target_percent: 55.8824 });
+        else if (value === 'aggressive') patchSettings({ real_pricing_model: 'aggressive', real_rtp_target_percent: 98, real_win_rate_target_percent: 55.8824 });
+        else patchSettings({ real_pricing_model: 'custom' });
+      }}><SelectTrigger aria-label="Pricing model preset"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="standard">Standard</SelectItem><SelectItem value="conservative">Conservative</SelectItem><SelectItem value="aggressive">Aggressive</SelectItem><SelectItem value="custom">Custom</SelectItem></SelectContent></Select></label>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="space-y-2 text-sm font-medium">Target RTP (%)<Input type="number" min="1" max="100" step="0.01" value={settings.real_rtp_target_percent} onChange={(event) => patchSettings({ real_pricing_model: 'custom', real_rtp_target_percent: Number(event.target.value) || 0 })}/><span className="block text-xs font-normal text-muted-foreground">Expected gross return based on the target win rate assumption.</span></label>
+        <label className="space-y-2 text-sm font-medium">Target win rate assumption (%)<Input type="number" min="1" max="100" step="0.0001" value={settings.real_win_rate_target_percent} onChange={(event) => patchSettings({ real_pricing_model: 'custom', real_win_rate_target_percent: Number(event.target.value) || 0 })}/><span className="block text-xs font-normal text-muted-foreground">Used to calculate pricing only; actual win rate is determined by the market.</span></label>
       </div>
-      <p className="text-xs leading-5 text-muted-foreground">No win-rate target or RTP override is applied. Trades settle from external OKX prices, so changing a target to alter results would make outcomes misleading.</p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Metric label="House edge (derived)" value={100 - settings.real_rtp_target_percent} suffix="%"/>
+        <Metric label="Expected player ROI (derived)" value={settings.real_rtp_target_percent - 100} suffix="%"/>
+        <Metric label="Payout on a 1 USDT win" value={impliedMultiplier} suffix="×"/>
+      </div>
+      <p className="text-xs leading-5 text-muted-foreground">A win pays stake × RTP ÷ target win rate. The Standard preset is 95% RTP and 55.8824% target win rate, giving the current 1.70× payout. This target does not change market outcomes.</p>
     </section>
 
     <section className="space-y-4 rounded-xl border border-border bg-card p-4">
@@ -80,6 +82,6 @@ export function AdminSettingsPanel({ settings, setSettings, trades, audit, busy,
   </form>;
 }
 
-function Metric({ label, value, suffix }:{label:string;value:number|null;suffix:string}) {
-  return <div className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 tabular text-lg font-semibold">{value === null ? 'No settled trades' : `${value.toFixed(2)}${suffix}`}</p></div>;
+function Metric({ label, value, suffix }:{label:string;value:number;suffix:string}) {
+  return <div className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 tabular text-lg font-semibold">{`${value.toFixed(2)}${suffix}`}</p></div>;
 }
