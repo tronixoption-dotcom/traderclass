@@ -16,10 +16,11 @@ export function AdminSettingsPanel({ settings, setSettings, audit, busy, onSave,
 }) {
   const patchSettings = (patch: Partial<SiteSettings>) => setSettings({ ...settings, ...patch });
   const impliedMultiplier = settings.real_win_rate_target_percent > 0 ? settings.real_rtp_target_percent / settings.real_win_rate_target_percent : 0;
+  const pricingIsValid = Number.isFinite(impliedMultiplier) && settings.real_rtp_target_percent > settings.real_win_rate_target_percent && impliedMultiplier <= 10;
   const numberField = (key: 'real_min_stake' | 'real_max_stake' | 'real_daily_loss_cap' | 'real_weekly_loss_cap' | 'real_monthly_loss_cap' | 'real_market_exposure_cap' | 'real_user_exposure_cap', label: string, help?: string) => (
     <label className="space-y-2 text-sm font-medium" key={key}>{label}<Input type="number" min="0" step="any" value={settings[key]} onChange={(event) => patchSettings({ [key]: Number(event.target.value) || 0 })}/>{help && <span className="block text-xs font-normal text-muted-foreground">{help}</span>}</label>
   );
-  return <form className="space-y-7" onSubmit={(event) => { event.preventDefault(); onSave(); }}>
+  return <form className="space-y-7" onSubmit={(event) => { event.preventDefault(); if (pricingIsValid) onSave(); }}>
     <section className="space-y-4 rounded-xl border border-border bg-card p-4">
       <div><h2 className="text-lg font-semibold">Crypto deposits and withdrawals</h2><p className="mt-1 text-sm text-muted-foreground">Configure USDT network, wallet address, instructions, and per-method minimums in Payment methods.</p></div>
       <Button type="button" variant="outline" onClick={onPaymentMethods}>Manage wallet address, network and minimums</Button>
@@ -39,8 +40,9 @@ export function AdminSettingsPanel({ settings, setSettings, audit, busy, onSave,
       }}><SelectTrigger aria-label="Pricing model preset"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="standard">Standard</SelectItem><SelectItem value="conservative">Conservative</SelectItem><SelectItem value="aggressive">Aggressive</SelectItem><SelectItem value="custom">Custom</SelectItem></SelectContent></Select></label>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="space-y-2 text-sm font-medium">Target RTP (%)<Input type="number" min="1" max="100" step="0.01" value={settings.real_rtp_target_percent} onChange={(event) => patchSettings({ real_pricing_model: 'custom', real_rtp_target_percent: Number(event.target.value) || 0 })}/><span className="block text-xs font-normal text-muted-foreground">Expected gross return based on the target win rate assumption.</span></label>
-        <label className="space-y-2 text-sm font-medium">Target win rate assumption (%)<Input type="number" min="1" max="100" step="0.0001" value={settings.real_win_rate_target_percent} onChange={(event) => patchSettings({ real_pricing_model: 'custom', real_win_rate_target_percent: Number(event.target.value) || 0 })}/><span className="block text-xs font-normal text-muted-foreground">Used to calculate pricing only; actual win rate is determined by the market.</span></label>
+        <label className="space-y-2 text-sm font-medium">Target win rate assumption (%)<Input type="number" min="1" max={Math.min(100, settings.real_rtp_target_percent - 0.0001)} step="0.0001" value={settings.real_win_rate_target_percent} onChange={(event) => patchSettings({ real_pricing_model: 'custom', real_win_rate_target_percent: Number(event.target.value) || 0 })}/><span className="block text-xs font-normal text-muted-foreground">Used to calculate pricing only; actual win rate is determined by the market. Keep it below target RTP.</span></label>
       </div>
+      {!pricingIsValid && <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">Target RTP must be higher than the target win-rate assumption, and the resulting payout cannot exceed 10×. The current values would produce a payout of {Number.isFinite(impliedMultiplier) ? `${impliedMultiplier.toFixed(2)}×` : '—'}.</p>}
       <div className="grid gap-3 sm:grid-cols-3">
         <Metric label="House edge (derived)" value={100 - settings.real_rtp_target_percent} suffix="%"/>
         <Metric label="Expected player ROI (derived)" value={settings.real_rtp_target_percent - 100} suffix="%"/>
@@ -77,7 +79,7 @@ export function AdminSettingsPanel({ settings, setSettings, audit, busy, onSave,
       <label className="block space-y-2 text-sm font-medium">Site announcement<Textarea aria-label="Site announcement" maxLength={240} value={settings.announcement} onChange={(event) => patchSettings({ announcement: event.target.value })}/></label>
     </section>
 
-    <Button disabled={busy}><Save/>{busy ? 'Saving…' : 'Save settings'}</Button>
+    <Button disabled={busy || !pricingIsValid}><Save/>{busy ? 'Saving…' : 'Save settings'}</Button>
     <section className="pt-4"><h2 className="mb-3 font-semibold">Recent admin activity</h2>{audit.length ? audit.map((item) => <div key={item.id} className="flex flex-wrap justify-between gap-2 border-b border-border py-3 text-sm"><span>{item.action}</span><span className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleString()}</span></div>) : <p className="text-sm text-muted-foreground">No changes recorded.</p>}</section>
   </form>;
 }
