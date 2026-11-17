@@ -91,9 +91,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Tradeclass | Trading Platform" },
-      { name: "description", content: "Trade gold, forex and crypto with demo and live USDT accounts on Tradeclass." },
+      { name: "description", content: "Trade supported crypto markets with a funded USDT account on Tradeclass." },
       { property: "og:title", content: "Tradeclass | Trading Platform" },
-      { property: "og:description", content: "A focused market workspace with demo and live USDT accounts." },
+      { property: "og:description", content: "A focused live market workspace with USDT trading." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -159,7 +159,7 @@ function RootFrame() {
     return <><LandingPage /><Toaster position="top-center" richColors closeButton /></>;
   }
   if (!authReady) {
-    return <div className="grid h-dvh place-items-center bg-background text-sm text-muted-foreground">Loading your secure workspace…</div>;
+    return <div className="grid h-dvh place-items-center bg-background text-sm text-muted-foreground">Loading your secure workspaceâ€¦</div>;
   }
   if (!user) return null;
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { SYMBOLS, SYMBOL_CATEGORIES, getSymbol } from "./symbols";
-import { buildHistory, getQuote } from "./feed";
+import { getQuote, hasFreshExchangeQuote, setExchangeQuote } from "./feed";
 
-describe("expanded practice instrument catalog", () => {
+describe("live instrument catalog", () => {
   it("offers a large list with unique symbols across every market category", () => {
     expect(SYMBOLS.length).toBe(150);
     expect(new Set(SYMBOLS.map((s) => s.id)).size).toBe(SYMBOLS.length);
@@ -14,21 +14,14 @@ describe("expanded practice instrument catalog", () => {
     }
   });
 
-  it("provides usable simulated quotes and chart history for every instrument", () => {
-    for (const symbol of SYMBOLS) {
-      const quote = getQuote(symbol.id);
-      expect(quote.mid).toBe(symbol.base);
-      expect(quote.bid).toBeGreaterThan(0);
-      expect(quote.ask).toBeGreaterThan(quote.bid);
-      expect(Number.isFinite(quote.changePct)).toBe(true);
-      expect(Number.isInteger(symbol.decimals)).toBe(true);
-      const candles = buildHistory(symbol.id, 60, 10);
-      expect(candles).toHaveLength(10);
-      for (const candle of candles) {
-        expect(candle.low).toBeGreaterThan(0);
-        expect(candle.high).toBeGreaterThanOrEqual(Math.max(candle.open, candle.close));
-        expect(candle.low).toBeLessThanOrEqual(Math.min(candle.open, candle.close));
-      }
-    }
+  it("shows only fresh exchange quotes for live instruments", () => {
+    const symbol = "BTCUSD";
+    expect(hasFreshExchangeQuote(symbol)).toBe(false);
+    expect(Number.isNaN(getQuote(symbol).mid)).toBe(true);
+    const now = Date.now();
+    setExchangeQuote(symbol, 50000, 49999, 50001, now);
+    expect(hasFreshExchangeQuote(symbol)).toBe(true);
+    expect(getQuote(symbol)).toMatchObject({ mid: 50000, bid: 49999, ask: 50001 });
+    expect(Number.isInteger(getSymbol(symbol).decimals)).toBe(true);
   });
 });

@@ -19,9 +19,10 @@ function database(): Db {
 
 async function requirePaymentsEnabled(db: Db, payment: 'deposit' | 'withdrawal') {
   const column = payment === 'deposit' ? 'deposits_enabled' : 'withdrawals_enabled';
-  const { data, error } = await db.from('site_settings').select(column).eq('id', true).maybeSingle();
+  const { data, error } = await db.from('site_settings').select('deposits_enabled,withdrawals_enabled').eq('id', true).maybeSingle();
   if (error || !data) throw new Error('M-Pesa payment settings are unavailable');
-  if (!data[column]) throw new Error(`M-Pesa ${payment}s are currently paused`);
+  const enabled = payment === 'deposit' ? data.deposits_enabled : data.withdrawals_enabled;
+  if (!enabled) throw new Error(`M-Pesa ${payment}s are currently paused`);
 }
 
 function darajaBase() {

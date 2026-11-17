@@ -16,15 +16,15 @@ function MarketPreview() {
       <div className="absolute -inset-8 rounded-[50%] bg-[#d7a743]/10 blur-3xl" />
       <div className="relative overflow-hidden rounded-[26px] border border-white/10 bg-[#0d1b30]/90 p-5 shadow-[0_30px_100px_rgba(0,0,0,.45)] backdrop-blur-xl sm:p-7">
         <div className="flex items-start justify-between gap-4">
-          <div><p className="text-xs font-semibold uppercase tracking-[.18em] text-slate-400">Trading workspace</p><h2 className="mt-2 text-lg font-bold text-white">Gold · XAU/USD</h2></div>
-          <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-semibold text-emerald-300">DEMO PREVIEW</span>
+          <div><p className="text-xs font-semibold uppercase tracking-[.18em] text-slate-400">Trading workspace</p><h2 className="mt-2 text-lg font-bold text-white">BTC / USDT</h2></div>
+          <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-semibold text-emerald-300">LIVE MARKETS</span>
         </div>
         <div className="mt-5 flex items-end justify-between gap-4">
-          <div><div className="font-mono text-3xl font-semibold tracking-tight text-white sm:text-4xl">2,347.82</div><div className="mt-1 flex items-center gap-1.5 text-sm text-emerald-300"><ArrowUpRight className="size-4" /> +0.68% <span className="text-slate-500">today</span></div></div>
+          <div><div className="font-mono text-3xl font-semibold tracking-tight text-white sm:text-4xl">Live quote</div><div className="mt-1 flex items-center gap-1.5 text-sm text-emerald-300"><ArrowUpRight className="size-4" /> OKX spot price</div></div>
           <div className="hidden gap-1 rounded-lg bg-white/5 p-1 text-[11px] text-slate-400 sm:flex">{["1m", "5m", "15m", "1h"].map((t, i) => <span key={t} className={`rounded-md px-2 py-1 ${i === 1 ? "bg-[#eab84e] font-bold text-[#101a2a]" : ""}`}>{t}</span>)}</div>
         </div>
         <div className="mt-5 h-[190px] overflow-hidden rounded-xl bg-[#091526] p-2 sm:h-[230px]">
-          <svg viewBox="0 0 540 220" className="h-full w-full" preserveAspectRatio="none" role="img" aria-label="Illustrative simulated gold price chart">
+          <svg viewBox="0 0 540 220" className="h-full w-full" preserveAspectRatio="none" role="img" aria-label="Illustrative market chart preview">
             <defs><linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#eab84e" stopOpacity=".23"/><stop offset="1" stopColor="#eab84e" stopOpacity="0"/></linearGradient></defs>
             {[35, 80, 125, 170, 210].map((y) => <line key={y} x1="0" x2="540" y1={y} y2={y} stroke="white" strokeOpacity=".08" strokeDasharray="4 7" />)}
             {[70, 170, 270, 370, 470].map((x) => <line key={x} x1={x} x2={x} y1="0" y2="220" stroke="white" strokeOpacity=".045" />)}
@@ -34,17 +34,17 @@ function MarketPreview() {
           </svg>
         </div>
         <div className="mt-4 grid grid-cols-3 gap-2">
-          {[{ label: "Markets", value: "Gold · FX · Crypto" }, { label: "Accounts", value: "Demo · Live USDT" }, { label: "Funding", value: "Crypto · M-Pesa" }].map((item) => <div key={item.label} className="rounded-xl bg-white/[.045] px-3 py-2.5"><div className="text-[10px] uppercase tracking-[.14em] text-slate-500">{item.label}</div><div className="mt-1 text-xs font-semibold text-slate-200">{item.value}</div></div>)}
+          {[{ label: "Markets", value: "OKX crypto" }, { label: "Account", value: "Live USDT" }, { label: "Funding", value: "Crypto · M-Pesa" }].map((item) => <div key={item.label} className="rounded-xl bg-white/[.045] px-3 py-2.5"><div className="text-[10px] uppercase tracking-[.14em] text-slate-500">{item.label}</div><div className="mt-1 text-xs font-semibold text-slate-200">{item.value}</div></div>)}
         </div>
       </div>
-      <div className="absolute -bottom-5 -left-5 hidden items-center gap-3 rounded-2xl border border-white/10 bg-[#13243a] px-4 py-3 shadow-2xl sm:flex"><span className="grid size-9 place-items-center rounded-xl bg-emerald-300/10 text-emerald-300"><ArrowDownRight className="size-5"/></span><span><span className="block text-[11px] text-slate-400">Demo account</span><span className="block text-sm font-semibold text-white">Explore the platform</span></span></div>
+      <div className="absolute -bottom-5 -left-5 hidden items-center gap-3 rounded-2xl border border-white/10 bg-[#13243a] px-4 py-3 shadow-2xl sm:flex"><span className="grid size-9 place-items-center rounded-xl bg-emerald-300/10 text-emerald-300"><ArrowDownRight className="size-5"/></span><span><span className="block text-[11px] text-slate-400">Live account</span><span className="block text-sm font-semibold text-white">Funded USDT trading</span></span></div>
     </div>
   );
 }
 
 const features = [
-  { icon: ChartNoAxesCombined, title: "A clearer market view", text: "Follow gold, forex and crypto in one focused workspace, with prices and chart tools close at hand." },
-  { icon: Bot, title: "Manual and automated trading", text: "Use the strategy robot on a demo account or, when enabled, a funded USDT account." },
+  { icon: ChartNoAxesCombined, title: "A clearer market view", text: "Follow supported OKX crypto markets in one focused workspace, with live prices and chart tools close at hand." },
+  { icon: Bot, title: "Manual and automated trading", text: "Use the strategy robot with your funded USDT account." },
   { icon: WalletCards, title: "Funding in one place", text: "Submit deposits, request withdrawals and review wallet activity from your account." },
 ];
 
@@ -71,21 +71,21 @@ export function LandingPage() {
             <div className="max-w-[570px]">
               <div className="inline-flex items-center gap-2 rounded-full border border-[#eab84e]/20 bg-[#eab84e]/[.07] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.18em] text-[#f1c96f]"><span className="size-1.5 rounded-full bg-emerald-400"/> Your markets. Your account.</div>
               <h1 className="mt-7 text-[clamp(2.8rem,6.4vw,5.25rem)] font-extrabold leading-[.99] tracking-[-.055em] text-white">Make your next move <span className="text-[#edbd58]">with clarity.</span></h1>
-              <p className="mt-6 max-w-[500px] text-base leading-7 text-slate-300 sm:text-lg sm:leading-8">A focused trading workspace for gold, forex and crypto, with demo and live USDT accounts and crypto funding options.</p>
+              <p className="mt-6 max-w-[500px] text-base leading-7 text-slate-300 sm:text-lg sm:leading-8">A focused trading workspace for supported OKX crypto markets, with a funded USDT account and crypto funding options.</p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link to="/auth" search={{ mode: "up" }} className="inline-flex h-12 items-center gap-2 rounded-lg bg-[#eab84e] px-5 text-sm font-bold text-[#101a2a] transition hover:bg-[#f1c96f]">Create your account <ArrowRight className="size-4"/></Link>
                 <Link to="/auth" search={{ mode: "in" }} className="inline-flex h-12 items-center rounded-lg border border-white/15 px-5 text-sm font-semibold text-white transition hover:border-white/30 hover:bg-white/5">Client sign in</Link>
               </div>
               <div className="mt-9 flex flex-wrap gap-x-6 gap-y-3 text-xs font-medium text-slate-400">
                 <span className="inline-flex items-center gap-2"><ShieldCheck className="size-4 text-emerald-300"/> Private customer workspace</span>
-                <span className="inline-flex items-center gap-2"><ChartNoAxesCombined className="size-4 text-[#edbd58]"/> Demo and live account options</span>
+                <span className="inline-flex items-center gap-2"><ChartNoAxesCombined className="size-4 text-[#edbd58]"/> Live USDT trading</span>
               </div>
             </div>
             <MarketPreview />
           </div>
           <div className="border-y border-white/[.07] bg-white/[.025]">
             <div className="mx-auto grid max-w-[1240px] grid-cols-2 gap-4 px-5 py-5 text-center sm:grid-cols-4 sm:px-8">
-              {["Gold & metals", "Forex pairs", "Crypto markets", "Demo and live accounts"].map((x) => <div key={x} className="text-xs font-semibold tracking-wide text-slate-300 sm:text-sm">{x}</div>)}
+              {["Supported crypto markets", "OKX spot quotes", "Funded USDT wallet", "Crypto and M-Pesa funding"].map((x) => <div key={x} className="text-xs font-semibold tracking-wide text-slate-300 sm:text-sm">{x}</div>)}
             </div>
           </div>
         </section>
@@ -99,13 +99,13 @@ export function LandingPage() {
 
         <section id="about" className="bg-[#0b192c] py-16 sm:py-20">
           <div className="mx-auto flex max-w-[1240px] flex-col items-start justify-between gap-8 px-5 sm:px-8 md:flex-row md:items-center">
-            <div className="max-w-2xl"><p className="text-xs font-bold uppercase tracking-[.2em] text-[#edbd58]">Start in your own time</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Choose the account that suits your session.</h2><p className="mt-4 text-sm leading-6 text-slate-300">Create an account to access demo trading, live USDT trading when enabled, and account funding tools. Live contracts settle inside Tradeclass using OKX market prices.</p></div>
+            <div className="max-w-2xl"><p className="text-xs font-bold uppercase tracking-[.2em] text-[#edbd58]">Start in your own time</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Trade with a funded USDT account.</h2><p className="mt-4 text-sm leading-6 text-slate-300">Create an account to access live USDT trading and account funding tools. Live contracts settle inside Tradeclass using OKX market prices.</p></div>
             <Link to="/auth" search={{ mode: "up" }} className="inline-flex h-12 shrink-0 items-center gap-2 rounded-lg bg-[#eab84e] px-5 text-sm font-bold text-[#101a2a] transition hover:bg-[#f1c96f]">Get started <ArrowUpRight className="size-4"/></Link>
           </div>
         </section>
       </main>
       <footer className="border-t border-white/[.08] bg-[#071225]">
-        <div className="mx-auto flex max-w-[1240px] flex-col gap-4 px-5 py-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-8"><Brand/><span>Tradeclass · Demo and live USDT accounts.</span><Link to="/auth" search={{ mode: "in" }} className="font-semibold text-slate-300 hover:text-white">Client sign in</Link></div>
+        <div className="mx-auto flex max-w-[1240px] flex-col gap-4 px-5 py-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-8"><Brand/><span>Tradeclass · Live USDT trading.</span><Link to="/auth" search={{ mode: "in" }} className="font-semibold text-slate-300 hover:text-white">Client sign in</Link></div>
       </footer>
     </div>
   );

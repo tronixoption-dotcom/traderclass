@@ -74,10 +74,11 @@ export const getRealTradingAdmin = createServerFn({ method: 'POST' }).middleware
   return { reserve: reserve.data, ledger: ledger.data ?? [] };
 });
 
-export const adjustRealTradingReserve = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ delta: z.number().finite().refine((n) => n !== 0).max(100000000).min(-100000000), note: z.string().trim().min(8).max(300) }).parse(value)).handler(async ({ data, context }) => {
+export const adjustRealTradingReserve = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ delta: z.number().finite().max(100000000).min(-100000000).refine((n) => n !== 0), note: z.string().trim().min(8).max(300) }).parse(value)).handler(async ({ data, context }) => {
   await requireStaff(context.supabase, context.userId, context.claims, true);
   const db = serviceDatabase();
-  const { data: balance, error } = await db.rpc('adjust_real_trading_reserve', { p_actor_id: context.userId, p_delta: data.delta, p_note: data.note });
+  const { data: rawBalance, error } = await db.rpc('adjust_real_trading_reserve', { p_actor_id: context.userId, p_delta: data.delta, p_note: data.note });
+  const balance = rawBalance as number | null;
   if (error || balance === null) throw new Error(error?.message || 'Could not update reserve');
   await context.supabase.from('admin_audit').insert({ actor_id: context.userId, action: `Adjusted real USDT payout reserve by ${data.delta}` });
   return { balance: Number(balance) };

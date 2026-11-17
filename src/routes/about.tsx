@@ -15,10 +15,10 @@ function AboutPage() {
       <div className="space-y-5 px-5 text-lg">
         <Logo className="h-24" />
         <p className="text-muted-foreground">
-          Tradeclass provides demo accounts and a separately funded live USDT account. Deposits and withdrawals are requested through the payment methods available in your account.
+          Tradeclass provides a funded USDT trading account. Deposits and withdrawals are requested through the payment methods available in your account.
         </p>
         <InfoNote>
-          Demo account balances and trades are simulated. Live USDT timed contracts use OKX spot prices and settle inside Tradeclass; they do not place orders on an OKX account. Deposits are credited after staff review, while withdrawal funds are reserved until the request is paid or rejected. Always check the asset, network and receiving address before sending crypto.
+          Live USDT timed contracts use OKX spot prices and settle inside Tradeclass; they do not place orders on an OKX account. Deposits are credited after staff review, while withdrawal funds are reserved until the request is paid or rejected. Always check the asset, network and receiving address before sending crypto.
         </InfoNote>
       </div>
     </div>

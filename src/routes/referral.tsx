@@ -108,7 +108,7 @@ function ReferralPage() {
           <ol className="mt-[8px] list-decimal space-y-[4px] pl-[22px] text-[13px] leading-[22px]">
             <li>Share your unique referral link or code with friends.</li>
             <li>When they sign up using your link, they're linked to your account.</li>
-            <li>They receive access to their own demo account.</li>
+            <li>They can create and fund their own trading account.</li>
             <li>Live USDT trading and wallet funding are available separately when enabled.</li>
           </ol>
         </Card>

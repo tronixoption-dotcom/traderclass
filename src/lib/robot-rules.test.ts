@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { backtestWinRate, robotStopReason, validateWithdraw } from "./trading";
 
-describe("practice withdrawal", () => {
+describe("live withdrawal validation", () => {
   it("minimum withdrawal is $1", () => {
     expect(validateWithdraw(0.5, 100)).not.toBeNull();
     expect(validateWithdraw(1, 100)).toBeNull();

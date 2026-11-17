@@ -1,36 +1,12 @@
-// Simulated price feed for practice trading. Runs only in the browser.
-import { SYMBOLS, getSymbol } from "./symbols";
-
+// Live OKX quote cache and chart history utilities. Runs only in the browser.
 export type Candle = { time: number; open: number; high: number; low: number; close: number };
 type Listener = () => void;
 
-const prices: Record<string, number> = {};
-const opens: Record<string, number> = {};
-const exchangeQuotes: Record<string, { mid: number; bid: number; ask: number; timestamp: number }> = {};
+const exchangeQuotes: Record<string, { mid: number; bid: number; ask: number; timestamp: number; open: number }> = {};
 const listeners = new Set<Listener>();
 let timer: ReturnType<typeof setInterval> | null = null;
 
-function normal() {
-  let u = 0;
-  let v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-}
-
-// Deterministic starting values so server and browser render the same first frame.
-const OPEN_OFFSETS = [0.0053, -0.0007, -0.0029, -0.0023, 0.0011, -0.0078];
-SYMBOLS.forEach((s, i) => {
-  prices[s.id] = s.base;
-  opens[s.id] = s.base * (1 + (OPEN_OFFSETS[i] ?? 0));
-});
-
 function tick() {
-  for (const s of SYMBOLS) {
-    const p = prices[s.id] ?? s.base;
-    const drift = (s.base - p) * 0.002;
-    prices[s.id] = p + drift + p * s.vol * normal();
-  }
   listeners.forEach((l) => l());
 }
 
@@ -48,13 +24,12 @@ export function subscribeFeed(l: Listener) {
 
 export function getPrice(id: string): number {
   const live = exchangeQuotes[id];
-  return live && Date.now() - live.timestamp <= 5000 ? live.mid : prices[id] ?? getSymbol(id).base;
+  return live && Date.now() - live.timestamp <= 5000 ? live.mid : Number.NaN;
 }
 
 export function setExchangeQuote(id: string, mid: number, bid: number, ask: number, timestamp: number) {
   if (![mid, bid, ask, timestamp].every(Number.isFinite) || mid <= 0 || bid <= 0 || ask <= 0 || timestamp > Date.now() + 1000 || Date.now() - timestamp > 5000) return;
-  if (!exchangeQuotes[id]) opens[id] = mid;
-  exchangeQuotes[id] = { mid, bid, ask, timestamp };
+  exchangeQuotes[id] = { mid, bid, ask, timestamp, open: exchangeQuotes[id]?.open ?? mid };
   listeners.forEach((listener) => listener());
 }
 
@@ -69,35 +44,10 @@ export function hasFreshExchangeQuote(id: string) {
 }
 
 export function getQuote(id: string) {
-  const s = getSymbol(id);
-  const mid = getPrice(id);
   const live = exchangeQuotes[id];
-  if (live && Date.now() - live.timestamp <= 5000) {
-    const change = mid - (opens[id] ?? mid);
-    return { mid, bid: live.bid, ask: live.ask, change, changePct: (change / (opens[id] ?? mid)) * 100 };
-  }
-  const bid = mid - s.spread / 2;
-  const ask = mid + s.spread / 2;
-  const open = opens[id] ?? s.base;
-  const change = mid - open;
-  return { mid, bid, ask, change, changePct: (change / open) * 100 };
+  if (!live || Date.now() - live.timestamp > 5000) return { mid: Number.NaN, bid: Number.NaN, ask: Number.NaN, change: 0, changePct: 0 };
+  const change = live.mid - live.open;
+  return { mid: live.mid, bid: live.bid, ask: live.ask, change, changePct: (change / live.open) * 100 };
 }
 
 /** Builds past candles for a timeframe that end at the current price. */
-export function buildHistory(id: string, tfSeconds: number, count = 160): Candle[] {
-  const s = getSymbol(id);
-  const now = Math.floor(Date.now() / 1000);
-  const lastBucket = now - (now % tfSeconds);
-  const sigma = s.vol * Math.sqrt(tfSeconds) * 0.35;
-  const out: Candle[] = [];
-  const anchor = getPrice(id);
-  let close = anchor;
-  for (let i = 0; i < count; i++) {
-    const open = close * (1 - sigma * normal()) + (anchor - close) * 0.04;
-    const high = Math.max(open, close) * (1 + Math.abs(normal()) * sigma * 0.5);
-    const low = Math.min(open, close) * (1 - Math.abs(normal()) * sigma * 0.5);
-    out.push({ time: lastBucket - i * tfSeconds, open, high, low, close });
-    close = open;
-  }
-  return out.reverse();
-}

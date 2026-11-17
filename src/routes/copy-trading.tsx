@@ -6,16 +6,15 @@ import { useStore, type RobotConfig } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/copy-trading")({
-  head: () => pageHead("Strategy presets", "Choose an automated trading strategy for a demo or live USDT account."),
+  head: () => pageHead("Strategy presets", "Choose an automated trading strategy for your live USDT account."),
   component: CopyTradingPage,
 });
 
 const STYLES: { id: string; name: string; symbol: string; strategy: RobotConfig["strategy"]; duration: number; about: string }[] = [
-  { id: "gold-trend", name: "Gold trend", symbol: "XAUUSD", strategy: "trend", duration: 15, about: "Follows the last move on gold, 15 second trades" },
-  { id: "euro-reverse", name: "Euro reversal", symbol: "EURUSD", strategy: "reverse", duration: 30, about: "Bets the last EUR/USD move turns around, 30 second trades" },
   { id: "btc-trend", name: "Bitcoin momentum", symbol: "BTCUSD", strategy: "trend", duration: 10, about: "Follows the last Bitcoin move, 10 second trades" },
   { id: "eth-reverse", name: "Ethereum reversal", symbol: "ETHUSD", strategy: "reverse", duration: 15, about: "Follows a reversal setup on ETH/USDT, 15 second trades" },
-  { id: "pound-random", name: "Pound coin flip", symbol: "GBPUSD", strategy: "random", duration: 15, about: "Picks BUY or SELL at random on GBP/USD" },
+  { id: "sol-trend", name: "Solana momentum", symbol: "SOLUSD", strategy: "trend", duration: 15, about: "Follows the last move on SOL/USDT, 15 second trades" },
+  { id: "xrp-reverse", name: "XRP reversal", symbol: "XRPUSD", strategy: "reverse", duration: 15, about: "Follows a reversal setup on XRP/USDT, 15 second trades" },
 ];
 
 function CopyTradingPage() {
@@ -26,7 +25,7 @@ function CopyTradingPage() {
     <div className="pb-6">
       <PageHeader title="Copy trading" compact />
       <div className="space-y-[7px] px-[16.5px] pt-[14px]">
-        {STYLES.filter((style) => accountMode !== 'real' || ['BTCUSD', 'ETHUSD'].includes(style.symbol)).map((s) => {
+        {STYLES.filter((style) => accountMode === 'real').map((s) => {
           const copying = r.running && r.symbol === s.symbol && r.strategy === s.strategy && r.duration === s.duration;
           return (
             <div key={s.id} className="flex items-center rounded-[14px] border border-border px-[14px] py-[11px]">

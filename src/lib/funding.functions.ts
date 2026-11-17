@@ -38,7 +38,8 @@ export const requestFundingWithdrawal = createServerFn({ method: 'POST' }).middl
 });
 
 export const getFundingAdmin = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
-  await requireStaff(context.supabase, context.userId, context.claims, true);
+  const roles = await requireStaff(context.supabase, context.userId, context.claims);
+  if (!roles.includes('admin') && !roles.includes('agent')) throw new Error('Funding access required');
   const [methods, transactions, profiles] = await Promise.all([
     context.supabase.from('funding_methods').select('*').order('sort_order'),
     context.supabase.from('funding_transactions').select('*').in('status', ['under_review','processing']).order('created_at'),
@@ -50,7 +51,8 @@ export const getFundingAdmin = createServerFn({ method: 'POST' }).middleware([re
 
 export const saveFundingMethod = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => configuredMethodInput.parse(value)).handler(async ({ data, context }) => {
   await requireStaff(context.supabase, context.userId, context.claims, true);
-  const row = { ...data, provider: 'crypto', updated_at: new Date().toISOString() };
+  const { id, ...fields } = data;
+  const row = { ...(id ? { id } : {}), ...fields, provider: 'crypto', updated_at: new Date().toISOString() };
   const { error } = await context.supabase.from('funding_methods').upsert(row, { onConflict: 'id' });
   if (error) throw new Error(error.message || 'Could not save payment method');
   await context.supabase.from('admin_audit').insert({ actor_id: context.userId, action: `Saved deposit method ${data.name}` });
@@ -58,7 +60,8 @@ export const saveFundingMethod = createServerFn({ method: 'POST' }).middleware([
 });
 
 export const reviewFundingTransaction = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ id: z.string().uuid(), approve: z.boolean(), note: z.string().trim().max(500) }).parse(value)).handler(async ({ data, context }) => {
-  await requireStaff(context.supabase, context.userId, context.claims, true);
+  const roles = await requireStaff(context.supabase, context.userId, context.claims);
+  if (!roles.includes('admin') && !roles.includes('agent')) throw new Error('Funding access required');
   const { error } = await context.supabase.rpc('review_funding_transaction', { p_transaction_id: data.id, p_approve: data.approve, p_note: data.note });
   if (error) throw new Error(error.message || 'Could not review transaction');
   await context.supabase.from('admin_audit').insert({ actor_id: context.userId, action: `${data.approve ? 'Approved' : 'Rejected'} funding transaction ${data.id}` });

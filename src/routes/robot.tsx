@@ -1,11 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AccountSelect } from "@/components/app/AccountSelect";
 import { PageHeader } from "@/components/app/PageHeader";
 import { InstrumentPicker } from "@/components/app/InstrumentPicker";
 import { pageHead } from "@/components/app/meta";
-import { buildHistory } from "@/lib/feed";
 import { robotSession, useStore, useTick } from "@/lib/store";
 import { DURATIONS, STAKE_STEPS, backtestWinRate, formatDuration, formatMoney, round2, stepValue } from "@/lib/trading";
 import { isOkxSymbol, OKX_INSTRUMENTS } from "@/lib/okx-market";
@@ -14,7 +12,7 @@ import { actionAllowed } from "@/lib/admin-rules";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/robot")({
-  head: () => pageHead("Trading Robot", "Configure automated demo or live USDT trading, order size and risk limits."),
+  head: () => pageHead("Trading Robot", "Configure automated USDT trading, order size and risk limits."),
   component: RobotPage,
 });
 
@@ -86,7 +84,7 @@ function SignalIcon({ spinning }: { spinning: boolean }) {
 
 function RobotPage() {
   useTick();
-  const { state, setRobot, setActive, accountMode, setAccountMode, realBalance, realTrades, realSettings, siteSettings, user } = useStore();
+  const { state, setRobot, accountMode, realBalance, realTrades, realSettings, siteSettings, user } = useStore();
   const r = state.robot;
   const live = accountMode === 'real';
   const session = robotSession(state, realTrades);
@@ -109,7 +107,7 @@ function RobotPage() {
         if (!response.ok || payload.code !== '0' || !payload.data) throw new Error('OKX market history is temporarily unavailable');
         closes = payload.data.filter((row) => row[8] === '1').map((row) => Number(row[4])).filter((price) => Number.isFinite(price) && price > 0).reverse();
         if (closes.length < 10) throw new Error('Not enough recent OKX data to compare strategies');
-      } else closes = buildHistory(r.symbol, Math.max(5, r.duration), 120).map((c) => c.close);
+      } else throw new Error('Live OKX price history is unavailable');
       const trend = backtestWinRate(closes, "trend");
       const reverse = backtestWinRate(closes, "reverse");
       const strategy = trend >= reverse ? "trend" : "reverse";
@@ -128,18 +126,13 @@ function RobotPage() {
   const locked = r.running;
   const pl = session.pl;
   const robotEnabled = actionAllowed(siteSettings, 'robot');
-  const liveReady = !live || (!!user && realSettings.enabled && isOkxSymbol(r.symbol) && hasFreshExchangeQuote(r.symbol) && r.stake >= realSettings.minStake && r.stake <= realSettings.maxStake && r.stake <= realBalance);
+  const liveReady = !!user && realSettings.enabled && isOkxSymbol(r.symbol) && hasFreshExchangeQuote(r.symbol) && r.stake >= realSettings.minStake && r.stake <= realSettings.maxStake && r.stake <= realBalance;
 
   return (
     <div className="flex min-h-full flex-col">
       <PageHeader title="Robot Settings" />
       <div className="flex-1 px-[21px] pt-[14px] pb-[20px] lg:px-[18px] lg:[zoom:1.12]">
-        <SectionTitle title="Execution account" sub="Choose where the robot places trades" />
-        <div className="grid grid-cols-2 gap-2 rounded-xl border border-input p-1.5">
-          <button type="button" onClick={() => setAccountMode('demo')} className={cn('rounded-lg px-3 py-2.5 text-left text-xs font-semibold', !live ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>Demo account<span className="mt-1 block font-normal">{formatMoney(state.balances[state.active], state.active)} available</span></button>
-          <button type="button" onClick={() => setAccountMode('real')} className={cn('rounded-lg px-3 py-2.5 text-left text-xs font-semibold', live ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>Live USDT<span className="mt-1 block font-normal">{formatMoney(realBalance, 'USDT')} available</span></button>
-        </div>
-        {!live && <div className="mt-2"><AccountSelect value={state.active} onChange={setActive} label="Demo execution account" suffix=" available" className="h-[58px] rounded-[12px]" /></div>}
+        <SectionTitle title="Live USDT account" sub={`${formatMoney(realBalance, 'USDT')} available for trading`} />
 
         <div className="mt-[24px]">
           <SectionTitle title="Order parameters" sub="Applied to each order" />
@@ -183,7 +176,7 @@ function RobotPage() {
                 {phase === "idle" ? "Tap to search for a signal" : phase === "searching" ? "Searching for a signal.." : "Search for a signal"}
               </span>
               <span className="block text-[12px] leading-[17px] text-primary-foreground/75">
-                Recent price history: <b className="font-bold text-primary-foreground">{live ? 'OKX' : 'Demo market'}</b>
+                Recent price history: <b className="font-bold text-primary-foreground">OKX</b>
               </span>
             </span>
           </button>
@@ -209,12 +202,12 @@ function RobotPage() {
           <div className="grid grid-cols-2 gap-[13px]">
             <div>
               <div className="mb-[7px] pl-[2px] text-[11.5px] text-muted-foreground">Stop loss</div>
-              <MoneyBox label="Stop loss" disabled={locked} currency={live ? 'USDT' : state.active} value={r.stopLoss} onChange={(n) => setRobot({ stopLoss: n })} />
+              <MoneyBox label="Stop loss" disabled={locked} currency="USDT" value={r.stopLoss} onChange={(n) => setRobot({ stopLoss: n })} />
               <div className="mt-[7px] pl-[2px] text-[11px] text-muted-foreground">Limit downside</div>
             </div>
             <div>
               <div className="mb-[7px] pl-[2px] text-[11.5px] text-muted-foreground">Take profit</div>
-              <MoneyBox label="Take profit" disabled={locked} currency={live ? 'USDT' : state.active} value={r.takeProfit} onChange={(n) => setRobot({ takeProfit: n })} />
+              <MoneyBox label="Take profit" disabled={locked} currency="USDT" value={r.takeProfit} onChange={(n) => setRobot({ takeProfit: n })} />
               <div className="mt-[7px] pl-[2px] text-[11px] text-muted-foreground">Lock gains</div>
             </div>
           </div>
@@ -226,7 +219,7 @@ function RobotPage() {
           {[
             { k: "Status", v: r.running ? "Running" : "Stopped", c: r.running ? "text-success" : "text-muted-foreground" },
             { k: "Trades", v: String(session.trades), c: "" },
-            { k: "Profits", v: formatMoney(session.profits, live ? 'USDT' : state.active), c: "text-success" },
+            { k: "Profits", v: formatMoney(session.profits, 'USDT'), c: "text-success" },
             { k: "Losses", v: String(session.losses), c: "text-destructive" },
           ].map((row) => (
             <div key={row.k} className="flex h-[35px] items-center justify-between border-b border-border text-[12.5px]">
@@ -238,12 +231,12 @@ function RobotPage() {
             <span className="font-semibold">Cumulative P/L</span>
             <span className={cn("tabular text-[13.5px] font-semibold", pl < 0 ? "text-destructive" : "text-success")}>
               {pl < 0 ? "-" : ""}
-              {formatMoney(Math.abs(pl), live ? 'USDT' : state.active)}
+              {formatMoney(Math.abs(pl), 'USDT')}
             </span>
           </div>
         </div>
         <p className="mt-[10px] text-center text-[10.5px] leading-[15px] text-muted-foreground">
-          {live ? 'Live account trades use your USDT balance and settle against OKX prices. This robot does not place orders on your OKX account. Historical results are not a prediction.' : 'Demo balances are simulated. Historical results do not predict future performance.'}
+          Live account trades use your USDT balance and settle against OKX prices. This robot does not place orders on your OKX account. Historical results are not a prediction.
         </p>
       </div>
 
@@ -257,7 +250,7 @@ function RobotPage() {
             !r.running && (!liveReady || !robotEnabled) && "cursor-not-allowed opacity-50",
           )}
         >
-          {r.running ? "Stop trading" : live ? "Start live robot" : "Start demo robot"}
+          {r.running ? "Stop trading" : "Start live robot"}
         </button>
       </div>
     </div>

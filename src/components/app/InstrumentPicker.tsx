@@ -55,7 +55,7 @@ export function InstrumentPicker({ symbol, onChange, disabled = false, robot = f
               </CommandGroup> : null;
             })}
           </CommandList>
-          <div className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground">{instruments.length} {liveOnly ? 'OKX supported crypto markets · Live spot prices' : 'instruments · Demo prices'}</div>
+          <div className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground">{instruments.length} OKX supported crypto markets · Live spot prices</div>
         </Command>
       </PopoverContent>
     </Popover>

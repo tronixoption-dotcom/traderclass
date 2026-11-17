@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { payoutFor, settleTrade, stepValue, STAKE_STEPS, validateStake, validateTransfer } from "./trading";
 
-describe("practice trading rules", () => {
+describe("live trading display rules", () => {
   it("a $5 stake pays $8.50 when it wins", () => {
     expect(payoutFor(5)).toBe(8.5);
   });

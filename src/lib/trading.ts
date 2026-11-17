@@ -1,4 +1,4 @@
-// Pure trading rules for the Goldmarket practice app. No real money is involved.
+// Shared stake and payout rules used by the live trading interface.
 
 export type Direction = "buy" | "sell";
 export type AccountId = "USD" | "USDT";
@@ -48,14 +48,14 @@ export function formatDuration(seconds: number): string {
 
 export function validateStake(stake: number, balance: number): string | null {
   if (!Number.isFinite(stake) || stake < MIN_STAKE) return `Minimum stake is $${MIN_STAKE}`;
-  if (stake > balance) return "Not enough practice funds";
+  if (stake > balance) return "Insufficient available balance";
   return null;
 }
 
 export function validateTransfer(amount: number, fromBalance: number, from: AccountId, to: AccountId): string | null {
   if (from === to) return "Choose two different accounts";
   if (!Number.isFinite(amount) || amount < MIN_TRANSFER) return `Minimum transfer amount is $${MIN_TRANSFER}`;
-  if (amount > fromBalance) return "Not enough practice funds";
+  if (amount > fromBalance) return "Insufficient available balance";
   return null;
 }
 
@@ -74,7 +74,7 @@ export const MIN_WITHDRAW = 1;
 
 export function validateWithdraw(amount: number, balance: number): string | null {
   if (!Number.isFinite(amount) || amount < MIN_WITHDRAW) return `Minimum withdrawal is $${MIN_WITHDRAW}`;
-  if (amount > balance) return "Not enough practice funds";
+  if (amount > balance) return "Insufficient available balance";
   return null;
 }
 

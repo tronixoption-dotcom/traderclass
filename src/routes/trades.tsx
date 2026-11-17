@@ -11,14 +11,14 @@ import { formatDuration, payoutFor } from "@/lib/trading";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/trades")({
-  head: () => pageHead("Trades", "Review your demo and live trade activity."),
+  head: () => pageHead("Trades", "Review your live trade activity."),
   component: TradesPage,
 });
 
 function TradesPage() {
   useTick();
-  const { state, realTrades } = useStore();
-  const allTrades = [...state.trades, ...realTrades].sort((a, b) => b.openedAt - a.openedAt);
+  const { realTrades } = useStore();
+  const allTrades = [...realTrades].sort((a, b) => b.openedAt - a.openedAt);
   const active = allTrades.filter((t) => t.status === "active");
   const history = allTrades.filter((t) => t.status !== "active");
   return (
@@ -73,7 +73,7 @@ function ActiveRow({ t }: { t: Trade }) {
   const now = Date.now();
   const left = Math.max(0, Math.ceil((t.expiresAt - now) / 1000));
   const pct = Math.min(100, ((now - t.openedAt) / (t.expiresAt - t.openedAt)) * 100);
-  const price = !t.real || hasFreshExchangeQuote(t.symbol) ? getPrice(t.symbol) : undefined;
+  const price = hasFreshExchangeQuote(t.symbol) ? getPrice(t.symbol) : undefined;
   const winning = price === undefined ? null : t.direction === "buy" ? price > t.entry : price < t.entry;
   return (
     <div className="rounded-[14px] border border-border px-[13px] py-[11px]">
@@ -82,7 +82,7 @@ function ActiveRow({ t }: { t: Trade }) {
         <div className="flex-1">
           <div className="flex items-center gap-[6px] text-[13.5px] font-bold">
             {t.symbol} <DirTag d={t.direction} />
-            <span className="text-[10px] font-medium text-muted-foreground">{t.real ? 'Live · OKX prices' : 'Demo'}</span>
+            <span className="text-[10px] font-medium text-muted-foreground">Live · OKX prices</span>
             {t.byRobot && <span className="text-[10.5px] font-normal text-muted-foreground">Robot</span>}
           </div>
           <div className="tabular text-[11.5px] text-muted-foreground">
@@ -92,7 +92,7 @@ function ActiveRow({ t }: { t: Trade }) {
         <div className="text-right">
           <div className="tabular text-[14.5px] font-bold">{formatDuration(left)}</div>
           <div className={cn("tabular text-[12px] font-medium", winning === null ? "text-muted-foreground" : winning ? "text-success" : "text-destructive")}>
-            {winning === null ? '—' : winning ? `+${t.real ? 'USDT ' : '$'}${(payoutFor(t.stake) - t.stake).toFixed(2)}` : `-${t.real ? 'USDT ' : '$'}${t.stake.toFixed(2)}`}
+            {winning === null ? '—' : winning ? `+USDT ${(payoutFor(t.stake) - t.stake).toFixed(2)}` : `-USDT ${t.stake.toFixed(2)}`}
           </div>
         </div>
       </div>
@@ -111,15 +111,15 @@ function HistoryRow({ t }: { t: Trade }) {
       <div className="flex-1">
         <div className="flex items-center gap-[6px] text-[13.5px] font-bold">
           {t.symbol} <DirTag d={t.direction} />
-          <span className="text-[10px] font-medium text-muted-foreground">{t.real ? 'Live · OKX prices' : 'Demo'}</span>
+          <span className="text-[10px] font-medium text-muted-foreground">Live · OKX prices</span>
         </div>
         <div className="tabular text-[11.5px] text-muted-foreground">
-          {fmtPrice(t.symbol, t.entry)} → {fmtPrice(t.symbol, t.close ?? t.entry)} · {t.real ? 'USDT ' : '$'}{t.stake} · {formatDuration(t.duration)}
+          {fmtPrice(t.symbol, t.entry)} → {fmtPrice(t.symbol, t.close ?? t.entry)} · USDT {t.stake} · {formatDuration(t.duration)}
         </div>
       </div>
       <div className="text-right">
         <div className={cn("tabular text-[13.5px] font-bold", t.status === "won" ? "text-success" : t.status === "lost" ? "text-destructive" : "text-muted-foreground")}>
-          {t.status === "draw" ? `${t.real ? 'USDT ' : '$'}0.00` : `${profit >= 0 ? "+" : "-"}${t.real ? 'USDT ' : '$'}${Math.abs(profit).toFixed(2)}`}
+          {t.status === "draw" ? 'USDT 0.00' : `${profit >= 0 ? "+" : "-"}USDT ${Math.abs(profit).toFixed(2)}`}
         </div>
         <div className="text-[10.5px] text-muted-foreground">{format(t.openedAt, "MMM d, HH:mm:ss")}</div>
       </div>

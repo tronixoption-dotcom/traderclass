@@ -65,7 +65,7 @@ function ProfilePage() {
           )}
         </Row>
         <Row label="Account">
-          <span className="text-[15.5px] font-semibold text-primary">{accountMode === 'real' ? 'Live USDT' : 'Demo'}</span>
+          <span className="text-[15.5px] font-semibold text-primary">Live USDT</span>
         </Row>
       </div>
 

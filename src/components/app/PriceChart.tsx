@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { IChartApi, IPriceLine, ISeriesApi, SeriesType, UTCTimestamp } from "lightweight-charts";
-import { buildHistory, getPrice, subscribeFeed, type Candle } from "@/lib/feed";
+import { getPrice, subscribeFeed, type Candle } from "@/lib/feed";
 import { getSymbol } from "@/lib/symbols";
 import type { Trade } from "@/lib/store";
 import { resolveToken } from "./color";
@@ -57,7 +57,7 @@ export function PriceChart({
   indicators,
   onApi,
   desktop = false,
-  marketSource = 'practice',
+  marketSource = 'okx',
 }: {
   symbol: string;
   timeframe: number;
@@ -67,7 +67,7 @@ export function PriceChart({
   indicators: Indicators;
   onApi?: (api: ChartApi | null) => void;
   desktop?: boolean;
-  marketSource?: 'practice' | 'okx';
+  marketSource?: 'okx';
 }) {
   const el = useRef<HTMLDivElement>(null);
   const seriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
@@ -152,7 +152,7 @@ export function PriceChart({
       if (marketSource === 'okx') {
         try { history = await okxHistory(symbol, timeframe, wide ? 320 : 160); }
         catch { history = []; }
-      } else history = buildHistory(symbol, timeframe, wide ? 320 : 160);
+      } else history = [];
       if (cancelled || !el.current) { chart.remove(); return; }
       if (kind === "area") {
         series = chart.addSeries(lc.AreaSeries, { lineColor: c.line, topColor: c.areaTop, bottomColor: c.areaBottom, lineWidth: 2, priceFormat, priceLineColor: c.up, priceLineStyle: lc.LineStyle.Dotted });
@@ -160,7 +160,7 @@ export function PriceChart({
         series = chart.addSeries(lc.LineSeries, { color: c.line, lineWidth: 2, priceFormat, priceLineColor: c.up, priceLineStyle: lc.LineStyle.Dotted });
       } else if (kind === "baseline") {
         series = chart.addSeries(lc.BaselineSeries, {
-          baseValue: { type: "price", price: history[0]?.close ?? getPrice(symbol) },
+          baseValue: { type: "price", price: history[0]?.close ?? (Number.isFinite(getPrice(symbol)) ? getPrice(symbol) : 1) },
           topLineColor: c.up,
           bottomLineColor: c.down,
           priceFormat,
@@ -215,11 +215,16 @@ export function PriceChart({
       unsub = subscribeFeed(() => {
         if (marketSource === 'okx' && !hasFreshExchangeQuote(symbol)) return;
         const price = getPrice(symbol);
+        if (!Number.isFinite(price)) return;
         const now = Math.floor(Date.now() / 1000);
         const bucket = now - (now % timeframe);
-        const last = bars[bars.length - 1] as Candle;
+        const last = bars[bars.length - 1];
         let cur: Candle;
-        if (bucket > last.time) {
+        if (!last) {
+          cur = { time: bucket, open: price, high: price, low: price, close: price };
+          bars.push(cur);
+          emaVals.push(price);
+        } else if (bucket > last.time) {
           cur = { time: bucket, open: last.close, high: Math.max(last.close, price), low: Math.min(last.close, price), close: price };
           bars.push(cur);
           emaVals.push(price * emaK + (emaVals[emaVals.length - 1] as number) * (1 - emaK));

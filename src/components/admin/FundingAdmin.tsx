@@ -10,6 +10,7 @@ import { getFundingAdmin, reviewFundingTransaction, saveFundingMethod } from '@/
 import { useStore } from '@/lib/store';
 
 type FundingMethod = Awaited<ReturnType<typeof getFundingAdmin>>['methods'][number];
+type FundingRequest = Awaited<ReturnType<typeof getFundingAdmin>>['transactions'][number] & { fee_amount: number; net_amount: number };
 type MethodForm = { id?: string; code: string; name: string; asset: 'USD'|'USDT'; network: string; deposit_address: string; instructions: string; min_amount: number; max_amount: number; deposits_enabled: boolean; withdrawals_enabled: boolean; sort_order: number };
 const fresh = (): MethodForm => ({ code: '', name: '', asset: 'USDT', network: 'TRC20', deposit_address: '', instructions: '', min_amount: 1, max_amount: 100000, deposits_enabled: true, withdrawals_enabled: true, sort_order: 100 });
 const cls = 'h-11';
@@ -24,7 +25,7 @@ export function FundingAdmin({ view = 'methods' }: { view?: 'methods' | 'deposit
   const done = async (fn: () => Promise<unknown>) => { setBusy(true); try { await fn(); await query.refetch(); await cache.invalidateQueries({ queryKey: ['funding-wallet'] }); toast.success('Saved'); } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not save'); } finally { setBusy(false); } };
   const edit = (method: FundingMethod) => setForm({ id: method.id, code: method.code, name: method.name, asset: method.asset === 'USD' ? 'USD' : 'USDT', network: method.network, deposit_address: method.deposit_address, instructions: method.instructions, min_amount: Number(method.min_amount), max_amount: Number(method.max_amount), deposits_enabled: method.deposits_enabled, withdrawals_enabled: method.withdrawals_enabled, sort_order: method.sort_order });
   const profiles = new Map((query.data?.profiles ?? []).map((profile) => [profile.id, profile.username]));
-  const requests = (query.data?.transactions ?? []).filter((transaction) => view === 'all' || (view === 'deposits' ? transaction.kind === 'deposit' : view === 'withdrawals' ? transaction.kind === 'withdrawal' : false));
+  const requests = ((query.data?.transactions ?? []) as FundingRequest[]).filter((transaction) => view === 'all' || (view === 'deposits' ? transaction.kind === 'deposit' : view === 'withdrawals' ? transaction.kind === 'withdrawal' : false));
 
   return <div className="space-y-8">
     {view === 'methods' && <section className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6">

@@ -12,7 +12,7 @@ import { isOkxSymbol, OKX_INSTRUMENTS } from "@/lib/okx-market";
 import { getSymbol } from "@/lib/symbols";
 import { InstrumentPicker } from "@/components/app/InstrumentPicker";
 import { fmtPrice } from "@/lib/format";
-import { DURATIONS, STAKE_STEPS, formatDuration, formatMoney, payoutFor, stepValue, type AccountId } from "@/lib/trading";
+import { DURATIONS, STAKE_STEPS, formatDuration, formatMoney, payoutFor, stepValue } from "@/lib/trading";
 import { cn } from "@/lib/utils";
 import { AdminEntry } from "@/components/admin/AdminEntry";
 
@@ -41,7 +41,7 @@ const EMOJIS = ["😀", "😎", "🚀", "🔥", "💰", "📈", "📉", "⚠️"
 export function MarketView({ desktop = false, overlay }: { desktop?: boolean; overlay?: ReactNode }) {
   useTick();
   const { state, accountMode, realTrades } = useStore();
-  const [symbol, setSymbol] = useState("XAUUSD");
+  const [symbol, setSymbol] = useState("BTCUSD");
   const [tf, setTf] = useState(900);
   const [kind, setKind] = useState<ChartKind>("candles");
   const [indicators, setIndicators] = useState<Indicators>({ ma: false, ema: false });
@@ -114,7 +114,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex h-[45px] shrink-0 items-center justify-between px-[8.5px] md:h-[60px] md:px-[20px]">
         <div className="flex min-w-0 items-center gap-3">{!desktop && <div className="scale-75"><AdminEntry /></div>}<InstrumentPicker symbol={symbol} onChange={setSymbol} liveOnly={accountMode === 'real'} /></div>
-        {accountMode === 'real' && <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${okxConnected && hasFreshExchangeQuote(symbol) ? 'bg-success-soft text-success' : 'bg-muted text-muted-foreground'}`}>{isOkxSymbol(symbol) ? okxConnected && hasFreshExchangeQuote(symbol) ? 'OKX LIVE' : 'CONNECTING OKX' : 'DEMO ONLY'}</span>}
+        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${okxConnected && hasFreshExchangeQuote(symbol) ? 'bg-success-soft text-success' : 'bg-muted text-muted-foreground'}`}>{isOkxSymbol(symbol) ? okxConnected && hasFreshExchangeQuote(symbol) ? 'OKX LIVE' : 'CONNECTING OKX' : 'UNSUPPORTED MARKET'}</span>
         <AccountPicker />
       </div>
 
@@ -237,7 +237,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
           {/* Chart pane */}
           <div className="relative min-w-0 flex-1 overflow-hidden rounded-l-[5px] bg-background">
             <ClientOnly fallback={<div className="absolute inset-0 animate-pulse bg-muted" />}>
-              <PriceChart desktop={desktop} symbol={symbol} timeframe={tf} kind={kind} theme={state.theme} trades={[...state.trades,...realTrades]} indicators={indicators} onApi={onApi} marketSource={accountMode==='real'&&isOkxSymbol(symbol)?'okx':'practice'} />
+              <PriceChart desktop={desktop} symbol={symbol} timeframe={tf} kind={kind} theme={state.theme} trades={realTrades} indicators={indicators} onApi={onApi} marketSource="okx" />
               <ChartDrawings
                 api={api}
                 tool={tool}
@@ -331,8 +331,8 @@ function ToolSep() {
 
 function ActiveChip() {
   useTick();
-  const { state } = useStore();
-  const active = state.trades.filter((t) => t.status === "active");
+  const { realTrades } = useStore();
+  const active = realTrades.filter((t) => t.status === "active");
   if (!active.length) return null;
   const next = Math.max(0, Math.ceil((Math.min(...active.map((t) => t.expiresAt)) - Date.now()) / 1000));
   return (
@@ -363,43 +363,31 @@ function ChartLegend({ symbol }: { symbol: string }) {
         </span>
       </div>
       <div className={cn("tabular mt-[4px] whitespace-nowrap text-[13.5px] leading-[18px] md:mt-0 md:text-[14.5px]", up ? "text-candle-up" : "text-candle-down")}>
-        {fmtPrice(symbol, q.mid, 1)}&nbsp; {up ? "+" : "−"}
-        {fmtPrice(symbol, Math.abs(q.change), 1)} ({up ? "+" : "−"}
-        {Math.abs(q.changePct).toFixed(2)}%)
+        {Number.isFinite(q.mid) ? <>{fmtPrice(symbol, q.mid, 1)}&nbsp; {up ? "+" : "−"}{fmtPrice(symbol, Math.abs(q.change), 1)} ({up ? "+" : "−"}{Math.abs(q.changePct).toFixed(2)}%)</> : 'Waiting for live price'}
       </div>
     </div>
   );
 }
 
 function AccountPicker() {
-  const { state, setActive, setAccountMode, realBalance } = useStore();
-  const a = state.active;
-  const real = state.accountMode === 'real';
+  const { realBalance } = useStore();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="flex h-[41.5px] items-center rounded-full border border-border pl-[9.5px] pr-[14px] text-left hover:bg-muted md:h-[50px] md:pl-[14px] md:pr-[18px]">
-          <AccountIcon account={real ? 'USDT' : a} className="md:size-[34px]" />
+          <AccountIcon account="USDT" className="md:size-[34px]" />
           <span className="ml-[11px] mr-[10px] block md:ml-[14px] md:mr-[14px]">
-            <span className="block text-[10px] leading-[13px] text-muted-foreground md:text-[12px] md:leading-[16px]">{real ? 'Live USDT Account' : `Demo ${a} Account`}</span>
-            <span className="tabular block text-[14.5px] font-bold leading-[18px] md:text-[15.5px] md:leading-[20px]">{formatMoney(real ? realBalance : state.balances[a], real ? 'USDT' : a)}</span>
+            <span className="block text-[10px] leading-[13px] text-muted-foreground md:text-[12px] md:leading-[16px]">Live USDT Account</span>
+            <span className="tabular block text-[14.5px] font-bold leading-[18px] md:text-[15.5px] md:leading-[20px]">{formatMoney(realBalance, 'USDT')}</span>
           </span>
           <ChevronDown className="size-[18px] text-muted-foreground" strokeWidth={1.8} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
-        {(["USD", "USDT"] as AccountId[]).map((id) => (
-          <DropdownMenuItem key={id} onClick={() => { setAccountMode('demo'); setActive(id); }} className={cn("gap-2.5 py-2", !real && id === a && "bg-primary-soft")}>
-            <AccountIcon account={id} />
-            <div className="flex-1"><div className="text-[13px] font-medium">Demo {id} Account</div><div className="tabular text-[11px] text-muted-foreground">{formatMoney(state.balances[id], id)}</div></div>
-            {!real && id === a && <Check className="size-4 text-primary" />}
-          </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => setAccountMode('real')} className={cn("gap-2.5 py-2", real && "bg-primary-soft")}>
+        <DropdownMenuItem className="gap-2.5 py-2 bg-primary-soft">
           <AccountIcon account="USDT" />
           <div className="flex-1"><div className="text-[13px] font-medium">Live USDT Account</div><div className="tabular text-[11px] text-muted-foreground">{formatMoney(realBalance, 'USDT')}</div></div>
-          {real && <Check className="size-4 text-primary" />}
+          <Check className="size-4 text-primary" />
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild><Link to="/deposit" className="gap-2.5 py-2 text-[13px] font-medium text-primary"><Wallet className="size-4" /> Deposit</Link></DropdownMenuItem>
@@ -431,7 +419,7 @@ function Stepper({ label, value, onMinus, onPlus, children }: { label: string; v
 
 /** Shared duration/stake state and order placement for both trade panels. */
 function useTicket(symbol: string) {
-  const { placeTrade, accountMode, submitRealTrade, realBalance, realSettings, siteSettings, state } = useStore();
+  const { submitRealTrade, realBalance, realSettings, siteSettings } = useStore();
   const [duration, setDuration] = useState(5);
   const [stake, setStake] = useState(5);
   const [stakeText, setStakeText] = useState("5");
@@ -446,30 +434,22 @@ function useTicket(symbol: string) {
     if (Number.isFinite(n) && n > 0) setStake(Math.round(n * 100) / 100);
   };
   const trade = async (direction: "buy" | "sell") => {
-    if (accountMode === 'real') {
-      if (!realSettings.enabled) { toast.error('Live account trading is currently paused by the administrator'); return; }
-      if (!isOkxSymbol(symbol)) { toast.error('Live trading is only available for supported OKX crypto markets'); return; }
-      if (!hasFreshExchangeQuote(symbol)) { toast.error('Waiting for a fresh OKX market quote'); return; }
-      if (stake < realSettings.minStake || stake > realSettings.maxStake) { toast.error(`Real stake must be between ${realSettings.minStake} and ${realSettings.maxStake} USDT`); return; }
-      if (stake > realBalance) { toast.error('Insufficient available USDT balance'); return; }
-      const error = await submitRealTrade({ symbol, direction, stake, duration });
-      if (error) toast.error(error);
-      else toast.success(`${direction.toUpperCase()} ${symbol} ? ${stake} USDT ? ${formatDuration(duration)} ? OKX price`);
-      return;
-    }
-    const err = placeTrade({ symbol, direction, stake, duration });
-    if (err) toast.error(err);
-    else toast(`${direction.toUpperCase()} ${symbol} ? $${stake} ? ${formatDuration(duration)}`, { duration: 1800 });
+    if (!realSettings.enabled) { toast.error('Live account trading is currently paused by the administrator'); return; }
+    if (!isOkxSymbol(symbol)) { toast.error('Live trading is only available for supported OKX crypto markets'); return; }
+    if (!hasFreshExchangeQuote(symbol)) { toast.error('Waiting for a fresh OKX market quote'); return; }
+    if (stake < realSettings.minStake || stake > realSettings.maxStake) { toast.error(`Stake must be between ${realSettings.minStake} and ${realSettings.maxStake} USDT`); return; }
+    if (stake > realBalance) { toast.error('Insufficient available USDT balance'); return; }
+    const error = await submitRealTrade({ symbol, direction, stake, duration });
+    if (error) toast.error(error);
+    else toast.success(`${direction.toUpperCase()} ${symbol} · ${stake} USDT · ${formatDuration(duration)} · OKX price`);
   };
   return {
     duration,
     stake,
     stakeText,
-    currency: accountMode === 'real' ? 'USDT' : state.active,
-    real: accountMode === 'real',
-    canTrade: accountMode === 'real'
-      ? (siteSettings.trading_enabled && realSettings.enabled && isOkxSymbol(symbol) && hasFreshExchangeQuote(symbol) && stake >= realSettings.minStake && stake <= realSettings.maxStake && stake <= realBalance)
-      : siteSettings.trading_enabled,
+    currency: 'USDT',
+    real: true,
+    canTrade: siteSettings.trading_enabled && realSettings.enabled && isOkxSymbol(symbol) && hasFreshExchangeQuote(symbol) && stake >= realSettings.minStake && stake <= realSettings.maxStake && stake <= realBalance,
     durationDown: () => setDuration(stepValue(DURATIONS, duration, -1)),
     durationUp: () => setDuration(stepValue(DURATIONS, duration, 1)),
     stakeDown: () => updateStake(stepValue(STAKE_STEPS, stake, -1)),
@@ -616,7 +596,7 @@ function ManualTrade({ symbol }: { symbol: string }) {
         <BigTradeButton variant="sell" price={t.real && !hasFreshExchangeQuote(symbol) ? "?" : q.bid.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("sell")} />
         <BigTradeButton variant="buy" price={t.real && !hasFreshExchangeQuote(symbol) ? "?" : q.ask.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("buy")} />
       </div>
-      <p className="mt-[14px] px-[4px] text-[11px] leading-[16px] text-muted-foreground">{t.real ? 'Live account contracts settle against completed OKX 1-second candles; orders are not placed on OKX.' : 'Demo account: prices and outcomes are simulated.'}</p>
+      <p className="mt-[14px] px-[4px] text-[11px] leading-[16px] text-muted-foreground">Live account contracts settle against completed OKX 1-second candles; orders are not placed on OKX.</p>
     </aside>
   );
 }
