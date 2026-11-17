@@ -125,6 +125,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const realSettingsRef = useRef(realSettings);
   realSettingsRef.current = realSettings;
   const robotSubmitPending = useRef(false);
+  const lastRealRefreshError = useRef<string | null>(null);
   const settingsRef = useRef(siteSettings);
   settingsRef.current = siteSettings;
   const ref = useRef(state);
@@ -193,13 +194,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       try {
         const result = await settleReal();
         if (!active) return;
+        lastRealRefreshError.current = null;
         setRealBalance(result.balance);
         if ('settings' in result) {
           setRealSettings(result.settings);
           if (!result.settings.enabled && ref.current.robot.running) commit({ ...ref.current, robot: { ...ref.current.robot, running: false } });
         }
         setRealTrades(result.trades.map((row) => ({ id: row.id, symbol: row.symbol, direction: row.direction as Direction, stake: Number(row.stake), entry: Number(row.entry_price), ...(row.close_price === null ? {} : { close: Number(row.close_price) }), payout: Number(row.payout), account: 'USDT' as const, openedAt: Date.parse(row.created_at), expiresAt: Date.parse(row.expires_at), duration: row.duration_seconds, status: row.status === 'open' ? 'active' : row.status as TradeStatus, real: true, byRobot: row.by_robot })));
-      } catch (error) { if (active) console.error('Refreshing real trading wallet failed', error); }
+      } catch (error) {
+        if (!active) return;
+        console.error('Refreshing real trading wallet failed', error);
+        const message = error instanceof Error ? error.message : 'Could not refresh your live account';
+        if (lastRealRefreshError.current !== message) toast.error(message);
+        lastRealRefreshError.current = message;
+      }
     };
     void refresh();
     const timer = setInterval(() => { void refresh(); }, 2000);

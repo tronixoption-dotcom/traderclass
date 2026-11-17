@@ -8,7 +8,7 @@ import { getOkxEntryQuote, getOkxSettlementCandle, okxInstrument } from './okx-m
 
 function serviceDatabase() {
   const url = process.env['SUPABASE_URL'];
-  const key = process.env['SUPABASE_SECRET_ROLE_KEY'];
+  const key = process.env['SUPABASE_SERVICE_ROLE_KEY'] ?? process.env['SUPABASE_SECRET_ROLE_KEY'];
   if (!url || !key) throw new Error('Real trading backend is not configured');
   return createClient<Database>(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
@@ -53,7 +53,11 @@ export const settleDueRealTrades = createServerFn({ method: 'POST' }).middleware
   for (const trade of due ?? []) {
     const candle = await getOkxSettlementCandle(trade.inst_id, trade.expires_at).catch(() => null);
     if (!candle) continue;
-    await db.rpc('settle_real_trade', { p_trade_id: trade.id, p_close_price: candle.close, p_close_candle_ts: candle.candleTs });
+    const { error: settlementError } = await db.rpc('settle_real_trade', { p_trade_id: trade.id, p_close_price: candle.close, p_close_candle_ts: candle.candleTs });
+    if (settlementError) {
+      console.error(`Could not settle live trade ${trade.id}:`, settlementError);
+      throw new Error(`Could not settle an expired live trade: ${settlementError.message}`);
+    }
   }
   const [wallet, trades, settings] = await Promise.all([
     db.from('funding_wallets').select('balance').eq('user_id', context.userId).eq('asset', 'USDT').maybeSingle(),
