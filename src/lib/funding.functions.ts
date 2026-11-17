@@ -10,7 +10,7 @@ const methodInput = z.object({
   min_amount: z.number().positive().max(1_000_000), max_amount: z.number().positive().max(1_000_000),
   deposits_enabled: z.boolean(), withdrawals_enabled: z.boolean(), sort_order: z.number().int().min(0).max(9999),
 }).refine((value) => value.max_amount >= value.min_amount, 'Maximum must be at least the minimum');
-const configuredMethodInput = methodInput.refine((value) => !value.deposits_enabled || !value.deposit_address.toUpperCase().startsWith('UNCONFIGURED-'), 'Set the real receiving wallet address before enabling deposits');
+const configuredMethodInput = methodInput.refine((value) => value.asset === 'USDT' && value.min_amount >= 10, 'Crypto deposits must use USDT with a minimum of 10 USDT').refine((value) => !value.deposits_enabled || !value.deposit_address.toUpperCase().startsWith('UNCONFIGURED-'), 'Set the real receiving wallet address before enabling deposits');
 
 export const loadFunding = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const [methods, wallets, transactions, deposits, settings] = await Promise.all([

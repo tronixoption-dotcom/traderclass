@@ -139,10 +139,17 @@ export type Database = {
           announcement: string
           deposit_fee_percent: number
           deposits_enabled: boolean
+          fraud_detection_enabled: boolean
+          fraud_max_trades_per_minute: number
           id: boolean
+          real_daily_loss_cap: number
+          real_market_exposure_cap: number
           real_max_stake: number
           real_min_stake: number
+          real_monthly_loss_cap: number
           real_trading_enabled: boolean
+          real_user_exposure_cap: number
+          real_weekly_loss_cap: number
           robot_enabled: boolean
           trading_enabled: boolean
           updated_at: string
@@ -153,10 +160,17 @@ export type Database = {
           announcement?: string
           deposit_fee_percent?: number
           deposits_enabled?: boolean
+          fraud_detection_enabled?: boolean
+          fraud_max_trades_per_minute?: number
           id?: boolean
+          real_daily_loss_cap?: number
+          real_market_exposure_cap?: number
             real_max_stake?: number
             real_min_stake?: number
+          real_monthly_loss_cap?: number
             real_trading_enabled?: boolean
+          real_user_exposure_cap?: number
+          real_weekly_loss_cap?: number
           robot_enabled?: boolean
           trading_enabled?: boolean
           updated_at?: string
@@ -167,10 +181,17 @@ export type Database = {
           announcement?: string
           deposit_fee_percent?: number
           deposits_enabled?: boolean
+          fraud_detection_enabled?: boolean
+          fraud_max_trades_per_minute?: number
           id?: boolean
+          real_daily_loss_cap?: number
+          real_market_exposure_cap?: number
             real_max_stake?: number
             real_min_stake?: number
+          real_monthly_loss_cap?: number
             real_trading_enabled?: boolean
+          real_user_exposure_cap?: number
+          real_weekly_loss_cap?: number
           robot_enabled?: boolean
           trading_enabled?: boolean
           updated_at?: string

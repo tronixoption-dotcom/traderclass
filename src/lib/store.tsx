@@ -174,7 +174,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const { data, error } = await supabase.from('site_settings').select('trading_enabled,robot_enabled,deposits_enabled,withdrawals_enabled,real_trading_enabled,real_min_stake,real_max_stake,deposit_fee_percent,withdrawal_fee_percent,announcement').maybeSingle();
+      const { data, error } = await supabase.from('site_settings').select('trading_enabled,robot_enabled,deposits_enabled,withdrawals_enabled,real_trading_enabled,real_min_stake,real_max_stake,deposit_fee_percent,withdrawal_fee_percent,real_daily_loss_cap,real_weekly_loss_cap,real_monthly_loss_cap,real_market_exposure_cap,real_user_exposure_cap,fraud_detection_enabled,fraud_max_trades_per_minute,announcement').maybeSingle();
       if (active && !error) {
         const next = data ?? DEFAULT_SETTINGS;
         settingsRef.current = next;
