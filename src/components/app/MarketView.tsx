@@ -56,6 +56,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
   const [full, setFull] = useState(false);
   const [quoteStatus, setQuoteStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [quoteError, setQuoteError] = useState('');
+  const [marketSource, setMarketSource] = useState<'okx' | 'inhouse'>(() => typeof window !== 'undefined' && window.localStorage.getItem('real-market-source') === 'inhouse' ? 'inhouse' : 'okx');
   const key = `${symbol}:${tf}`;
   const list = drawings[key] ?? [];
   const setDrawings = useCallback((fn: (d: Drawing[]) => Drawing[]) => setDrawingsMap((m) => ({ ...m, [key]: fn(m[key] ?? []) })), [key]);
@@ -70,7 +71,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
     setQuoteError('');
     const refresh = async () => {
       try {
-        const quote = await loadMarketQuote({ data: { symbol } });
+        const quote = await loadMarketQuote({ data: { symbol, source: marketSource } });
         if (active) {
           setMarketQuote(symbol, quote.price, quote.bid, quote.ask, quote.timestamp);
           setQuoteStatus('connected');
@@ -86,7 +87,9 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
     void refresh();
     const timer = setInterval(() => { void refresh(); }, 2000);
     return () => { active = false; clearInterval(timer); };
-  }, [accountMode, symbol, user?.id, loadMarketQuote]);
+  }, [accountMode, symbol, user?.id, marketSource, loadMarketQuote]);
+
+  useEffect(() => { window.localStorage.setItem('real-market-source', marketSource); }, [marketSource]);
 
   const snapshot = () => {
     if (!api) return;
@@ -109,8 +112,14 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
     <div className="flex h-full min-h-0 min-w-0 flex-1">
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex h-[45px] shrink-0 items-center justify-between px-[8.5px] md:h-[60px] md:px-[20px]">
-        <div className="flex min-w-0 items-center gap-3">{!desktop && <div className="scale-75"><AdminEntry /></div>}<InstrumentPicker symbol={symbol} onChange={setSymbol} liveOnly={accountMode === 'real'} /></div>
-        <span title={quoteStatus === 'error' ? quoteError : undefined} role={accountMode === 'real' && quoteStatus === 'error' ? 'status' : undefined} className={`rounded-full px-2 py-1 text-[10px] font-bold ${accountMode === 'demo' || hasFreshMarketQuote(symbol) ? 'bg-success-soft text-success' : quoteStatus === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}>{accountMode === 'demo' ? 'DEMO MARKET' : hasFreshMarketQuote(symbol) ? 'OKX LIVE' : quoteStatus === 'error' ? 'MARKET UNAVAILABLE' : 'CONNECTING'}</span>
+        <div className="flex min-w-0 items-center gap-3">{!desktop && <div className="scale-75"><AdminEntry /></div>}<InstrumentPicker symbol={symbol} onChange={setSymbol} liveOnly={accountMode === 'real' && marketSource === 'okx'} /></div>
+        <div className="flex items-center gap-2">
+          {accountMode === 'real' && <div className="flex rounded-full border border-border p-0.5" role="group" aria-label="Live market source">
+            <button type="button" aria-pressed={marketSource === 'okx'} onClick={() => setMarketSource('okx')} className={`rounded-full px-2 py-1 text-[10px] font-bold ${marketSource === 'okx' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>OKX</button>
+            <button type="button" aria-pressed={marketSource === 'inhouse'} onClick={() => setMarketSource('inhouse')} className={`rounded-full px-2 py-1 text-[10px] font-bold ${marketSource === 'inhouse' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>IN-HOUSE</button>
+          </div>}
+          <span title={quoteStatus === 'error' ? quoteError : undefined} role={accountMode === 'real' && quoteStatus === 'error' ? 'status' : undefined} className={`rounded-full px-2 py-1 text-[10px] font-bold ${accountMode === 'demo' || quoteStatus === 'connected' ? 'bg-success-soft text-success' : quoteStatus === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}>{accountMode === 'demo' ? 'DEMO MARKET' : quoteStatus === 'connected' ? (marketSource === 'okx' ? 'OKX LIVE' : 'IN-HOUSE LIVE') : quoteStatus === 'error' ? 'MARKET UNAVAILABLE' : 'CONNECTING'}</span>
+        </div>
         <AccountPicker />
       </div>
 
@@ -171,7 +180,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
             </DropdownMenuContent>
           </DropdownMenu>
           <Sep />
-          <InstrumentPicker symbol={symbol} onChange={setSymbol} compare liveOnly={accountMode === 'real'} />
+          <InstrumentPicker symbol={symbol} onChange={setSymbol} compare liveOnly={accountMode === 'real' && marketSource === 'okx'} />
           <Sep />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -233,7 +242,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
           {/* Chart pane */}
           <div className="relative min-w-0 flex-1 overflow-hidden rounded-l-[5px] bg-background">
             <ClientOnly fallback={<div className="absolute inset-0 animate-pulse bg-muted" />}>
-              <PriceChart desktop={desktop} symbol={symbol} timeframe={tf} kind={kind} theme={state.theme} trades={[...state.trades, ...realTrades]} indicators={indicators} onApi={onApi} practice={accountMode === 'demo'} />
+              <PriceChart desktop={desktop} symbol={symbol} timeframe={tf} kind={kind} theme={state.theme} trades={[...state.trades, ...realTrades]} indicators={indicators} onApi={onApi} practice={accountMode === 'demo'} marketSource={marketSource} />
               <ChartDrawings
                 api={api}
                 tool={tool}
@@ -279,13 +288,13 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
 
       {!desktop && (
         <>
-          <TradePanel symbol={symbol} />
+          <TradePanel symbol={symbol} marketSource={marketSource} />
           <div className="h-[7px] shrink-0 bg-muted" />
         </>
       )}
       {overlay}
     </div>
-    {desktop && <ManualTrade symbol={symbol} />}
+    {desktop && <ManualTrade symbol={symbol} marketSource={marketSource} />}
     </div>
   );
 }
@@ -420,7 +429,7 @@ function Stepper({ label, value, onMinus, onPlus, children }: { label: string; v
 }
 
 /** Shared duration/stake state and order placement for both trade panels. */
-function useTicket(symbol: string) {
+function useTicket(symbol: string, marketSource: 'okx' | 'inhouse') {
   const { submitRealTrade, placeTrade, accountMode, realBalance, realSettings, siteSettings, state } = useStore();
   const real = accountMode === 'real';
   const [duration, setDuration] = useState(5);
@@ -444,12 +453,12 @@ function useTicket(symbol: string) {
       return;
     }
     if (!realSettings.enabled) { toast.error('Live account trading is currently paused by the administrator'); return; }
-    if (!hasFreshMarketQuote(symbol)) { toast.error('Waiting for a fresh OKX market quote'); return; }
+    if (!hasFreshMarketQuote(symbol)) { toast.error(`Waiting for a fresh ${marketSource === 'okx' ? 'OKX' : 'in-house'} market quote`); return; }
     if (stake < realSettings.minStake || (realSettings.maxStake > 0 && stake > realSettings.maxStake)) { toast.error(`Minimum stake is ${realSettings.minStake} USDT${realSettings.maxStake > 0 ? `; maximum is ${realSettings.maxStake} USDT` : ''}`); return; }
     if (stake > realBalance) { toast.error('Insufficient available USDT balance'); return; }
-    const error = await submitRealTrade({ symbol, direction, stake, duration });
+    const error = await submitRealTrade({ symbol, direction, stake, duration, marketSource });
     if (error) toast.error(error);
-    else toast.success(`${direction.toUpperCase()} ${symbol} · ${stake} USDT · ${formatDuration(duration)} · OKX market price`);
+    else toast.success(`${direction.toUpperCase()} ${symbol} · ${stake} USDT · ${formatDuration(duration)} · ${marketSource === 'okx' ? 'OKX' : 'in-house'} price`);
   };
   return {
     duration,
@@ -489,9 +498,9 @@ function StakeInput({ t, className }: { t: ReturnType<typeof useTicket>; classNa
   );
 }
 
-function TradePanel({ symbol }: { symbol: string }) {
+function TradePanel({ symbol, marketSource }: { symbol: string; marketSource: 'okx' | 'inhouse' }) {
   useTick();
-  const t = useTicket(symbol);
+  const t = useTicket(symbol, marketSource);
   const q = getQuote(symbol);
   const d = getSymbol(symbol).decimals;
 
@@ -586,9 +595,9 @@ function BigTradeButton({ variant, price, onClick, disabled = false }: { variant
   );
 }
 
-function ManualTrade({ symbol }: { symbol: string }) {
+function ManualTrade({ symbol, marketSource }: { symbol: string; marketSource: 'okx' | 'inhouse' }) {
   useTick();
-  const t = useTicket(symbol);
+  const t = useTicket(symbol, marketSource);
   const q = getQuote(symbol);
   const d = getSymbol(symbol).decimals;
   return (
@@ -606,7 +615,7 @@ function ManualTrade({ symbol }: { symbol: string }) {
         <BigTradeButton variant="sell" price={t.real && !hasFreshMarketQuote(symbol) ? "?" : q.bid.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("sell")} />
         <BigTradeButton variant="buy" price={t.real && !hasFreshMarketQuote(symbol) ? "?" : q.ask.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("buy")} />
       </div>
-      <p className="mt-[14px] px-[4px] text-[11px] leading-[16px] text-muted-foreground">Live contracts settle against OKX crypto market prices. These are platform contracts, not OKX exchange orders.</p>
+      <p className="mt-[14px] px-[4px] text-[11px] leading-[16px] text-muted-foreground">Live contracts settle against the selected {marketSource === 'okx' ? 'OKX crypto' : 'in-house'} market price. These are platform contracts, not exchange orders.</p>
     </aside>
   );
 }

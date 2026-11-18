@@ -35,7 +35,7 @@ export function subscribeFeed(l: Listener) {
 
 export function getPrice(id: string): number {
   const live = marketQuotes[id];
-  return live && Date.now() - live.timestamp <= 5000 ? live.mid : getPracticePrice(id);
+  return live?.mid ?? getPracticePrice(id);
 }
 
 export function getPracticePrice(id: string): number {
@@ -60,7 +60,7 @@ export function hasFreshMarketQuote(id: string) {
 
 export function getQuote(id: string) {
   const live = marketQuotes[id];
-  if (live && Date.now() - live.timestamp <= 5000) {
+  if (live) {
     const change = live.mid - live.open;
     return { mid: live.mid, bid: live.bid, ask: live.ask, change, changePct: (change / live.open) * 100 };
   }

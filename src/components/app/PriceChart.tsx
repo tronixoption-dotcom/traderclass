@@ -37,6 +37,7 @@ export function PriceChart({
   onApi,
   desktop = false,
   practice = false,
+  marketSource = 'okx',
 }: {
   symbol: string;
   timeframe: number;
@@ -47,6 +48,7 @@ export function PriceChart({
   onApi?: (api: ChartApi | null) => void;
   desktop?: boolean;
   practice?: boolean;
+  marketSource?: 'okx' | 'inhouse';
 }) {
   const loadMarketHistory = useServerFn(getInhouseMarketHistory);
   const el = useRef<HTMLDivElement>(null);
@@ -131,7 +133,7 @@ export function PriceChart({
       let history: Candle[];
       if (practice) history = buildPracticeHistory(symbol, timeframe, wide ? 320 : 160);
       else try {
-        const rows = await loadMarketHistory({ data: { symbol, limit: 300, timeframe } });
+        const rows = await loadMarketHistory({ data: { symbol, limit: 300, timeframe, source: marketSource } });
         const grouped = new Map<number, Candle>();
         for (const row of rows) {
           const bucket = row.time - (row.time % timeframe);
@@ -238,7 +240,7 @@ export function PriceChart({
       chart?.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, timeframe, kind, theme, indicators.ma, indicators.ema, desktop, practice, loadMarketHistory]);
+  }, [symbol, timeframe, kind, theme, indicators.ma, indicators.ema, desktop, practice, marketSource, loadMarketHistory]);
 
   const activeKey = trades
     .filter((t) => t.status === "active" && t.symbol === symbol)

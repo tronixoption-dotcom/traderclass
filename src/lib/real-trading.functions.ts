@@ -15,7 +15,7 @@ function serviceDatabase() {
 
 const tradeInput = z.object({
   requestId: z.string().uuid(), symbol: z.string().max(16), direction: z.enum(['buy', 'sell']),
-  stake: z.number().positive(), duration: z.number().int(), byRobot: z.boolean().optional().default(false),
+  stake: z.number().positive(), duration: z.number().int(), byRobot: z.boolean().optional().default(false), marketSource: z.enum(['okx', 'inhouse']).default('okx'),
 });
 
 function marketSpec(symbol: string) {
@@ -30,7 +30,7 @@ function okxInstrument(symbol: string) {
   return `${symbol.slice(0, -3)}-USDT`;
 }
 
-async function okxQuote(symbol: string) {
+async function okxQuote(symbol: string, maxAgeMs = 60_000) {
   const instId = okxInstrument(symbol);
   const response = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${encodeURIComponent(instId)}`, { signal: AbortSignal.timeout(5000), cache: 'no-store' });
   if (!response.ok) throw new Error(`OKX market request failed (${response.status})`);
@@ -38,26 +38,46 @@ async function okxQuote(symbol: string) {
   const row = payload.data?.[0];
   const price = Number(row?.last);
   const timestamp = Number(row?.ts);
-  if (payload.code !== '0' || !row || !Number.isFinite(price) || price <= 0 || !Number.isFinite(timestamp) || timestamp > Date.now() + 1000 || Date.now() - timestamp > 5000) {
+  if (payload.code !== '0' || !row || !Number.isFinite(price) || price <= 0 || !Number.isFinite(timestamp) || timestamp > Date.now() + 1000 || Date.now() - timestamp > maxAgeMs) {
     throw new Error(payload.msg || `No fresh OKX spot market for ${instId}`);
   }
   return { price, bid: Number(row.bidPx) || price, ask: Number(row.askPx) || price, timestamp, candleTs: timestamp, instId };
 }
 
-async function inhouseQuote(db: ReturnType<typeof serviceDatabase>, symbol: string) {
-  const quote = await okxQuote(symbol);
+async function saveQuote(db: ReturnType<typeof serviceDatabase>, symbol: string, quote: { price: number; timestamp: number }) {
   const { error } = await db.from('inhouse_market_ticks').upsert({ symbol, tick_at: new Date(quote.timestamp).toISOString(), price: quote.price });
-  if (error) throw new Error('Could not save the OKX settlement quote');
-  return quote;
+  if (error) throw new Error('Could not save the market settlement quote');
 }
 
-export const getInhouseMarketQuote = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ symbol: z.string().max(16) }).parse(value)).handler(async ({ data }) => {
+async function marketQuote(db: ReturnType<typeof serviceDatabase>, symbol: string, source: 'okx' | 'inhouse') {
+  if (source === 'okx') {
+    const quote = await okxQuote(symbol);
+    await saveQuote(db, symbol, quote);
+    return { ...quote, source };
+  }
+  const spec = marketSpec(symbol);
+  const { data, error } = await db.rpc('advance_inhouse_market', { p_symbol: symbol, p_base_price: spec.base, p_volatility: spec.vol });
+  const tick = data?.[0];
+  if (error || !tick) throw new Error(error?.message || 'In-house market price is unavailable');
+  const price = Number(tick.price);
+  const timestamp = Date.parse(tick.tick_at);
+  return { price, bid: price - spec.spread / 2, ask: price + spec.spread / 2, timestamp, candleTs: timestamp, source };
+}
+
+export const getInhouseMarketQuote = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ symbol: z.string().max(16), source: z.enum(['okx', 'inhouse']).default('okx') }).parse(value)).handler(async ({ data }) => {
   const db = serviceDatabase();
-  const quote = await inhouseQuote(db, data.symbol);
-  return quote;
+  return marketQuote(db, data.symbol, data.source);
 });
 
-export const getInhouseMarketHistory = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ symbol: z.string().max(16), limit: z.number().int().min(10).max(3600), timeframe: z.number().int().optional() }).parse(value)).handler(async ({ data }) => {
+export const getInhouseMarketHistory = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ symbol: z.string().max(16), limit: z.number().int().min(10).max(3600), timeframe: z.number().int().optional(), source: z.enum(['okx', 'inhouse']).default('okx') }).parse(value)).handler(async ({ data }) => {
+  if (data.source === 'inhouse') {
+    const db = serviceDatabase();
+    const spec = marketSpec(data.symbol);
+    await db.rpc('advance_inhouse_market', { p_symbol: data.symbol, p_base_price: spec.base, p_volatility: spec.vol });
+    const { data: rows, error } = await db.from('inhouse_market_ticks').select('tick_at,price').eq('symbol', data.symbol).order('tick_at', { ascending: false }).limit(Math.min(data.limit, 3600));
+    if (error) throw new Error('Could not load in-house market history');
+    return (rows ?? []).reverse().map((row) => ({ time: Math.floor(Date.parse(row.tick_at) / 1000), price: Number(row.price) }));
+  }
   const instId = okxInstrument(data.symbol);
   const bar = data.timeframe && data.timeframe >= 86400 ? '1D' : data.timeframe && data.timeframe >= 14400 ? '4H' : data.timeframe && data.timeframe >= 3600 ? '1H' : data.timeframe && data.timeframe >= 1800 ? '30m' : data.timeframe && data.timeframe >= 900 ? '15m' : data.timeframe && data.timeframe >= 300 ? '5m' : '1m';
   const response = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${encodeURIComponent(instId)}&bar=${bar}&limit=${Math.min(data.limit, 300)}`, { signal: AbortSignal.timeout(8000), cache: 'no-store' });
@@ -80,13 +100,16 @@ export const getRealTradingData = createServerFn({ method: 'GET' }).middleware([
 export const placeRealTrade = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => tradeInput.parse(value)).handler(async ({ data, context }) => {
   if (![5, 10, 15, 30, 60, 120, 300].includes(data.duration)) throw new Error('Choose a supported trade duration');
   const db = serviceDatabase();
-  const quote = await inhouseQuote(db, data.symbol);
+  const quote = await marketQuote(db, data.symbol, data.marketSource);
+  if (data.marketSource === 'okx' && Date.now() - quote.timestamp > 5000) throw new Error('The OKX quote is stale; wait for a fresh market update');
   const { data: tradeId, error } = await db.rpc('open_real_trade', {
     p_user_id: context.userId, p_symbol: data.symbol, p_inst_id: data.symbol, p_direction: data.direction,
     p_stake: data.stake, p_duration_seconds: data.duration, p_entry_price: quote.price,
     p_entry_price_ts: quote.timestamp, p_request_id: data.requestId, p_by_robot: data.byRobot,
   });
   if (error || !tradeId) throw new Error(error?.message || 'Could not open the real trade');
+  const { error: sourceError } = await db.from('real_trades').update({ market_source: data.marketSource }).eq('id', tradeId).eq('user_id', context.userId);
+  if (sourceError) throw new Error('Trade opened but its market source could not be saved');
   const { data: trade, error: tradeError } = await db.from('real_trades').select('*').eq('id', tradeId).eq('user_id', context.userId).single();
   if (tradeError || !trade) throw new Error('Trade was opened but could not be loaded');
   const { data: wallet } = await db.from('funding_wallets').select('balance').eq('user_id', context.userId).eq('asset', 'USDT').maybeSingle();
@@ -95,10 +118,10 @@ export const placeRealTrade = createServerFn({ method: 'POST' }).middleware([req
 
 export const settleDueRealTrades = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const db = serviceDatabase();
-  const { data: due, error } = await db.from('real_trades').select('id,symbol,expires_at').eq('user_id', context.userId).eq('status', 'open').lte('expires_at', new Date().toISOString()).order('expires_at').limit(30);
+  const { data: due, error } = await db.from('real_trades').select('id,symbol,expires_at,market_source').eq('user_id', context.userId).eq('status', 'open').lte('expires_at', new Date().toISOString()).order('expires_at').limit(30);
   if (error) throw new Error('Could not check for expired real trades');
   for (const trade of due ?? []) {
-    const quote = await inhouseQuote(db, trade.symbol).catch(() => null);
+    const quote = await marketQuote(db, trade.symbol, trade.market_source).catch(() => null);
     if (!quote || quote.timestamp < Date.parse(trade.expires_at)) continue;
     const { error: settlementError } = await db.rpc('settle_real_trade', { p_trade_id: trade.id, p_close_price: quote.price, p_close_candle_ts: quote.candleTs });
     if (settlementError) {
