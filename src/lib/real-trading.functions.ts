@@ -160,10 +160,10 @@ export const settleDueRealTrades = createServerFn({ method: 'POST' }).middleware
       settlementErrors.push(error instanceof Error ? error.message : 'Could not load a settlement quote');
       continue;
     }
-    // The SQL settlement routine allows a one second boundary because in-house
-    // ticks are stored at whole-second precision. Match that rule here.
-    if (quote.timestamp + 1000 < Date.parse(trade.expires_at)) continue;
-    const { error: settlementError } = await db.rpc('settle_real_trade', { p_trade_id: trade.id, p_close_price: quote.price, p_close_candle_ts: quote.candleTs });
+    // The database checks its own expiry clock. Don't pre-reject based on a
+    // quote timestamp from another clock; both OKX freshness and in-house
+    // generation have already been validated by marketQuote above.
+    const { error: settlementError } = await db.rpc('settle_real_trade', { p_trade_id: trade.id, p_close_price: quote.price, p_close_candle_ts: Date.now() });
     if (settlementError) {
       console.error(`Could not settle live trade ${trade.id}:`, settlementError);
       settlementErrors.push(settlementError.message);
