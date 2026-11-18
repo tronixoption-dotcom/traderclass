@@ -65,7 +65,9 @@ async function marketQuote(db: ReturnType<typeof serviceDatabase>, symbol: strin
   const tick = data?.[0];
   if (error || !tick) throw new Error(error?.message || 'In-house market price is unavailable');
   const price = Number(tick.price);
-  const timestamp = Date.parse(tick.tick_at);
+  // In-house prices are stored on whole-second ticks. Stamp the quote when it
+  // was read so a tick fetched just after expiry can settle that trade.
+  const timestamp = Date.now();
   return { price, bid: price - spec.spread / 2, ask: price + spec.spread / 2, timestamp, candleTs: timestamp, source };
 }
 
