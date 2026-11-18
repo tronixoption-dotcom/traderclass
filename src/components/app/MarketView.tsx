@@ -455,6 +455,7 @@ function useTicket(symbol: string, marketSource: 'okx' | 'inhouse') {
     if (!realSettings.enabled) { toast.error('Live account trading is currently paused by the administrator'); return; }
     if (!hasFreshMarketQuote(symbol)) { toast.error(`Waiting for a fresh ${marketSource === 'okx' ? 'OKX' : 'in-house'} market quote`); return; }
     if (stake < realSettings.minStake || (realSettings.maxStake > 0 && stake > realSettings.maxStake)) { toast.error(`Minimum stake is ${realSettings.minStake} USDT${realSettings.maxStake > 0 ? `; maximum is ${realSettings.maxStake} USDT` : ''}`); return; }
+    if (stake > realSettings.reserveMaxStake) { toast.error(realSettings.reserveMaxStake < realSettings.minStake ? 'Trading is temporarily paused while payout liquidity is replenished' : `Current payout reserve supports stakes up to ${realSettings.reserveMaxStake.toFixed(2)} USDT`); return; }
     if (stake > realBalance) { toast.error('Insufficient available USDT balance'); return; }
     const error = await submitRealTrade({ symbol, direction, stake, duration, marketSource });
     if (error) toast.error(error);
@@ -466,6 +467,8 @@ function useTicket(symbol: string, marketSource: 'okx' | 'inhouse') {
     : !hasFreshMarketQuote(symbol) ? 'Waiting for a fresh market quote.'
     : stake < realSettings.minStake ? `Minimum real-account stake is ${realSettings.minStake} USDT.`
     : realSettings.maxStake > 0 && stake > realSettings.maxStake ? `Maximum real-account stake is ${realSettings.maxStake} USDT.`
+    : stake > realSettings.reserveMaxStake && realSettings.reserveMaxStake < realSettings.minStake ? 'Trading is temporarily paused while payout liquidity is replenished.'
+    : stake > realSettings.reserveMaxStake ? `Payout reserve currently supports stakes up to ${realSettings.reserveMaxStake.toFixed(2)} USDT.`
     : stake > realBalance ? `Available real-account balance is ${realBalance.toFixed(2)} USDT.`
     : null;
   return {
@@ -477,7 +480,7 @@ function useTicket(symbol: string, marketSource: 'okx' | 'inhouse') {
     disabledReason,
     insufficientBalance: real && stake > realBalance,
     canTrade: real
-      ? siteSettings.trading_enabled && realSettings.enabled && hasFreshMarketQuote(symbol) && stake >= realSettings.minStake && (realSettings.maxStake <= 0 || stake <= realSettings.maxStake) && stake <= realBalance
+      ? siteSettings.trading_enabled && realSettings.enabled && hasFreshMarketQuote(symbol) && stake >= realSettings.minStake && (realSettings.maxStake <= 0 || stake <= realSettings.maxStake) && stake <= realSettings.reserveMaxStake && stake <= realBalance
       : siteSettings.trading_enabled && stake >= 1 && stake <= state.balances[state.active],
     durationDown: () => setDuration(stepValue(DURATIONS, duration, -1)),
     durationUp: () => setDuration(stepValue(DURATIONS, duration, 1)),

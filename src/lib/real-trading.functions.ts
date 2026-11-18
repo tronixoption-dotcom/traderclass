@@ -66,6 +66,23 @@ async function marketQuote(db: ReturnType<typeof serviceDatabase>, symbol: strin
   return { price, bid: price - spec.spread / 2, ask: price + spec.spread / 2, timestamp, candleTs: timestamp, source };
 }
 
+async function realTradingSettings(db: ReturnType<typeof serviceDatabase>) {
+  const [settings, reserve] = await Promise.all([
+    db.from('site_settings').select('real_trading_enabled,real_min_stake,real_max_stake,real_rtp_target_percent,real_win_rate_target_percent').eq('id', true).maybeSingle(),
+    db.from('real_trading_reserves').select('available').eq('asset', 'USDT').maybeSingle(),
+  ]);
+  if (settings.error || reserve.error) throw new Error('Could not load real trading limits');
+  const payoutMultiplier = Number(settings.data?.real_rtp_target_percent ?? 95) / Number(settings.data?.real_win_rate_target_percent ?? 55.8824);
+  const profitPerStake = payoutMultiplier - 1;
+  const availableReserve = Number(reserve.data?.available ?? 0);
+  return {
+    enabled: settings.data?.real_trading_enabled ?? false,
+    minStake: Number(settings.data?.real_min_stake ?? 1),
+    maxStake: Number(settings.data?.real_max_stake ?? 0),
+    reserveMaxStake: profitPerStake > 0 ? availableReserve / profitPerStake : 0,
+  };
+}
+
 export const getInhouseMarketQuote = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ symbol: z.string().max(16), source: z.enum(['okx', 'inhouse']).default('okx') }).parse(value)).handler(async ({ data }) => {
   const db = serviceDatabase();
   return marketQuote(db, data.symbol, data.source);
@@ -96,13 +113,14 @@ export const getInhouseMarketHistory = createServerFn({ method: 'GET' }).middlew
 });
 
 export const getRealTradingData = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
+  const db = serviceDatabase();
   const [wallet, trades, settings] = await Promise.all([
     context.supabase.from('funding_wallets').select('balance').eq('user_id', context.userId).eq('asset', 'USDT').maybeSingle(),
     context.supabase.from('real_trades').select('*').eq('user_id', context.userId).order('created_at', { ascending: false }).limit(100),
-    context.supabase.from('site_settings').select('real_trading_enabled,real_min_stake,real_max_stake').eq('id', true).maybeSingle(),
+    realTradingSettings(db),
   ]);
-  if (wallet.error || trades.error || settings.error) throw new Error('Could not load the real account');
-  return { balance: Number(wallet.data?.balance ?? 0), trades: trades.data ?? [], settings: { enabled: settings.data?.real_trading_enabled ?? false, minStake: Number(settings.data?.real_min_stake ?? 1), maxStake: Number(settings.data?.real_max_stake ?? 0) } };
+  if (wallet.error || trades.error) throw new Error('Could not load the real account');
+  return { balance: Number(wallet.data?.balance ?? 0), trades: trades.data ?? [], settings };
 });
 
 export const placeRealTrade = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => tradeInput.parse(value)).handler(async ({ data, context }) => {
@@ -141,10 +159,10 @@ export const settleDueRealTrades = createServerFn({ method: 'POST' }).middleware
   const [wallet, trades, settings] = await Promise.all([
     db.from('funding_wallets').select('balance').eq('user_id', context.userId).eq('asset', 'USDT').maybeSingle(),
     db.from('real_trades').select('*').eq('user_id', context.userId).order('created_at', { ascending: false }).limit(100),
-    db.from('site_settings').select('real_trading_enabled,real_min_stake,real_max_stake').eq('id', true).maybeSingle(),
+    realTradingSettings(db),
   ]);
-  if (wallet.error || trades.error || settings.error) throw new Error('Could not refresh real account');
-  return { balance: Number(wallet.data?.balance ?? 0), trades: trades.data ?? [], settings: { enabled: settings.data?.real_trading_enabled ?? false, minStake: Number(settings.data?.real_min_stake ?? 1), maxStake: Number(settings.data?.real_max_stake ?? 0) } };
+  if (wallet.error || trades.error) throw new Error('Could not refresh real account');
+  return { balance: Number(wallet.data?.balance ?? 0), trades: trades.data ?? [], settings };
 });
 
 export const getRealTradingAdmin = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {

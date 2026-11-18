@@ -115,7 +115,7 @@ function RobotPage() {
   const locked = r.running;
   const pl = session.pl;
   const robotEnabled = actionAllowed(siteSettings, 'robot');
-  const liveReady = !!user && realSettings.enabled && hasFreshMarketQuote(r.symbol) && r.stake >= realSettings.minStake && (realSettings.maxStake <= 0 || r.stake <= realSettings.maxStake) && r.stake <= realBalance;
+  const liveReady = !!user && realSettings.enabled && hasFreshMarketQuote(r.symbol) && r.stake >= realSettings.minStake && (realSettings.maxStake <= 0 || r.stake <= realSettings.maxStake) && r.stake <= realSettings.reserveMaxStake && r.stake <= realBalance;
   const demoReady = r.stake >= 1 && r.stake <= state.balances[state.active];
   const ready = live ? liveReady : demoReady;
 

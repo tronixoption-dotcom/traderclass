@@ -92,7 +92,7 @@ type Ctx = {
   signOut: () => Promise<void>;
   realBalance: number;
   realTrades: Trade[];
-  realSettings: { enabled: boolean; minStake: number; maxStake: number };
+  realSettings: { enabled: boolean; minStake: number; maxStake: number; reserveMaxStake: number };
   placeTrade: (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean }) => string | null;
   setAccountMode: (mode: 'demo' | 'real') => void;
   submitRealTrade: (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean; marketSource?: 'okx' | 'inhouse' }) => Promise<string | null>;
@@ -136,7 +136,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [realBalance, setRealBalance] = useState(0);
   const [realTrades, setRealTrades] = useState<Trade[]>([]);
-  const [realSettings, setRealSettings] = useState({ enabled: false, minStake: 1, maxStake: 0 });
+  const [realSettings, setRealSettings] = useState({ enabled: false, minStake: 1, maxStake: 0, reserveMaxStake: 0 });
   const realTradesRef = useRef(realTrades);
   realTradesRef.current = realTrades;
   const realSettingsRef = useRef(realSettings);
@@ -306,7 +306,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }
         }
         if (cur.accountMode === 'real') {
-          if (robotSubmitPending.current || !realSettingsRef.current.enabled || !hasFreshMarketQuote(r.symbol)) return;
+          if (robotSubmitPending.current || !realSettingsRef.current.enabled || r.stake > realSettingsRef.current.reserveMaxStake || !hasFreshMarketQuote(r.symbol)) return;
           robotSubmitPending.current = true;
           void (async () => {
             try {
@@ -431,7 +431,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           if (!user) { toast.error('Sign in before starting the live account robot'); return; }
           if (!realSettingsRef.current.enabled || !actionAllowed(settingsRef.current, 'trade') || !actionAllowed(settingsRef.current, 'robot')) { toast.error('Live account robot trading is currently unavailable'); return; }
           if (!hasFreshMarketQuote(config.symbol)) { toast.error('Wait for a fresh in-house market price before starting'); return; }
-          if (config.stake < realSettingsRef.current.minStake || (realSettingsRef.current.maxStake > 0 && config.stake > realSettingsRef.current.maxStake) || config.stake > realBalance) { toast.error('Check your live USDT balance and configured stake settings'); return; }
+          if (config.stake < realSettingsRef.current.minStake || (realSettingsRef.current.maxStake > 0 && config.stake > realSettingsRef.current.maxStake) || config.stake > realSettingsRef.current.reserveMaxStake || config.stake > realBalance) { toast.error('Check your live USDT balance, payout reserve, and configured stake settings'); return; }
         }
         if (r.running && !actionAllowed(settingsRef.current, 'robot')) { toast.error('Robot trading is currently paused'); return; }
         const cur = ref.current.robot;
