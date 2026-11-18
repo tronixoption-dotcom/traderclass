@@ -39,11 +39,14 @@ async function okxQuote(symbol: string, maxAgeMs = 5000) {
   const bid = Number(row?.bids?.[0]?.[0]);
   const ask = Number(row?.asks?.[0]?.[0]);
   const price = (bid + ask) / 2;
-  const timestamp = Number(row?.ts);
-  if (payload.code !== '0' || !row || !Number.isFinite(bid) || bid <= 0 || !Number.isFinite(ask) || ask < bid || !Number.isFinite(price) || !Number.isFinite(timestamp) || timestamp > Date.now() + 1000 || Date.now() - timestamp > maxAgeMs) {
+  const sourceTimestamp = Number(row?.ts);
+  const receivedAt = Date.now();
+  if (payload.code !== '0' || !row || !Number.isFinite(bid) || bid <= 0 || !Number.isFinite(ask) || ask < bid || !Number.isFinite(price) || !Number.isFinite(sourceTimestamp) || sourceTimestamp > receivedAt + 1000 || receivedAt - sourceTimestamp > maxAgeMs) {
     throw new Error(payload.msg || `No fresh OKX order book for ${instId}`);
   }
-  return { price, bid, ask, timestamp, candleTs: timestamp, instId };
+  // OKX book ts is the last order-book change, not the time this fresh snapshot was read.
+  // Use server receipt time for trade expiry and settlement after validating source freshness.
+  return { price, bid, ask, timestamp: receivedAt, candleTs: receivedAt, instId };
 }
 
 async function saveQuote(db: ReturnType<typeof serviceDatabase>, symbol: string, quote: { price: number; timestamp: number }) {
