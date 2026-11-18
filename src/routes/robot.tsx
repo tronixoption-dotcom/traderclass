@@ -9,7 +9,6 @@ import { robotSession, useStore, useTick } from "@/lib/store";
 import { DURATIONS, STAKE_STEPS, backtestWinRate, formatDuration, formatMoney, round2, stepValue } from "@/lib/trading";
 import { getInhouseMarketHistory } from '@/lib/real-trading.functions';
 import { buildPracticeHistory } from '@/lib/feed';
-import { hasFreshMarketQuote } from "@/lib/feed";
 import { actionAllowed } from "@/lib/admin-rules";
 import { cn } from "@/lib/utils";
 
@@ -115,7 +114,7 @@ function RobotPage() {
   const locked = r.running;
   const pl = session.pl;
   const robotEnabled = actionAllowed(siteSettings, 'robot');
-  const liveReady = !!user && realSettings.enabled && hasFreshMarketQuote(r.symbol) && r.stake >= realSettings.minStake && (realSettings.maxStake <= 0 || r.stake <= realSettings.maxStake) && r.stake <= realSettings.reserveMaxStake && r.stake <= realBalance;
+  const liveReady = !!user && realSettings.enabled && r.stake >= realSettings.minStake && (realSettings.maxStake <= 0 || r.stake <= realSettings.maxStake) && r.stake <= realSettings.reserveMaxStake && r.stake <= realBalance;
   const demoReady = r.stake >= 1 && r.stake <= state.balances[state.active];
   const ready = live ? liveReady : demoReady;
 

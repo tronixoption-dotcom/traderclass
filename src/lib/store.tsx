@@ -306,7 +306,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }
         }
         if (cur.accountMode === 'real') {
-          if (robotSubmitPending.current || !realSettingsRef.current.enabled || r.stake > realSettingsRef.current.reserveMaxStake || !hasFreshMarketQuote(r.symbol)) return;
+          if (robotSubmitPending.current || !realSettingsRef.current.enabled || r.stake > realSettingsRef.current.reserveMaxStake) return;
           robotSubmitPending.current = true;
           void (async () => {
             try {
