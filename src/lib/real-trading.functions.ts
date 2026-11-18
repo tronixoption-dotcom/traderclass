@@ -30,18 +30,20 @@ function okxInstrument(symbol: string) {
   return `${symbol.slice(0, -3)}-USDT`;
 }
 
-async function okxQuote(symbol: string, maxAgeMs = 60_000) {
+async function okxQuote(symbol: string, maxAgeMs = 5000) {
   const instId = okxInstrument(symbol);
-  const response = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${encodeURIComponent(instId)}`, { signal: AbortSignal.timeout(5000), cache: 'no-store' });
+  const response = await fetch(`https://www.okx.com/api/v5/market/books?instId=${encodeURIComponent(instId)}&sz=1`, { signal: AbortSignal.timeout(5000), cache: 'no-store' });
   if (!response.ok) throw new Error(`OKX market request failed (${response.status})`);
-  const payload = await response.json() as { code?: string; msg?: string; data?: Array<{ last: string; bidPx: string; askPx: string; ts: string }> };
+  const payload = await response.json() as { code?: string; msg?: string; data?: Array<{ bids: string[][]; asks: string[][]; ts: string }> };
   const row = payload.data?.[0];
-  const price = Number(row?.last);
+  const bid = Number(row?.bids?.[0]?.[0]);
+  const ask = Number(row?.asks?.[0]?.[0]);
+  const price = (bid + ask) / 2;
   const timestamp = Number(row?.ts);
-  if (payload.code !== '0' || !row || !Number.isFinite(price) || price <= 0 || !Number.isFinite(timestamp) || timestamp > Date.now() + 1000 || Date.now() - timestamp > maxAgeMs) {
-    throw new Error(payload.msg || `No fresh OKX spot market for ${instId}`);
+  if (payload.code !== '0' || !row || !Number.isFinite(bid) || bid <= 0 || !Number.isFinite(ask) || ask < bid || !Number.isFinite(price) || !Number.isFinite(timestamp) || timestamp > Date.now() + 1000 || Date.now() - timestamp > maxAgeMs) {
+    throw new Error(payload.msg || `No fresh OKX order book for ${instId}`);
   }
-  return { price, bid: Number(row.bidPx) || price, ask: Number(row.askPx) || price, timestamp, candleTs: timestamp, instId };
+  return { price, bid, ask, timestamp, candleTs: timestamp, instId };
 }
 
 async function saveQuote(db: ReturnType<typeof serviceDatabase>, symbol: string, quote: { price: number; timestamp: number }) {
@@ -108,9 +110,10 @@ export const placeRealTrade = createServerFn({ method: 'POST' }).middleware([req
   const db = serviceDatabase();
   const quote = await marketQuote(db, data.symbol, data.marketSource);
   if (data.marketSource === 'okx' && Date.now() - quote.timestamp > 5000) throw new Error('The OKX quote is stale; wait for a fresh market update');
+  const entryPrice = data.direction === 'buy' ? quote.ask : quote.bid;
   const { data: tradeId, error } = await db.rpc('open_real_trade', {
     p_user_id: context.userId, p_symbol: data.symbol, p_inst_id: data.symbol, p_direction: data.direction,
-    p_stake: data.stake, p_duration_seconds: data.duration, p_entry_price: quote.price,
+    p_stake: data.stake, p_duration_seconds: data.duration, p_entry_price: entryPrice,
     p_entry_price_ts: quote.timestamp, p_request_id: data.requestId, p_by_robot: data.byRobot,
   });
   if (error || !tradeId) throw new Error(error?.message || 'Could not open the real trade');
