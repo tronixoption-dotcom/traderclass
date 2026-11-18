@@ -143,6 +143,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   realSettingsRef.current = realSettings;
   const robotSubmitPending = useRef(false);
   const lastRealRefreshError = useRef<string | null>(null);
+  const lastRealSettlementError = useRef<string | null>(null);
   const settingsRef = useRef(siteSettings);
   settingsRef.current = siteSettings;
   const ref = useRef(state);
@@ -232,6 +233,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (!active) return;
         lastRealRefreshError.current = null;
         setRealBalance(result.balance);
+        const settlementMessage = result.settlementErrors[0] ?? null;
+        if (settlementMessage && lastRealSettlementError.current !== settlementMessage) {
+          toast.error(`Live trade settlement delayed: ${settlementMessage}`);
+        }
+        lastRealSettlementError.current = settlementMessage;
         if ('settings' in result) {
           setRealSettings(result.settings);
           if (!result.settings.enabled && ref.current.robot.running) commit({ ...ref.current, robot: { ...ref.current.robot, running: false } });

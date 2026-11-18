@@ -65,9 +65,9 @@ async function marketQuote(db: ReturnType<typeof serviceDatabase>, symbol: strin
   const tick = data?.[0];
   if (error || !tick) throw new Error(error?.message || 'In-house market price is unavailable');
   const price = Number(tick.price);
-  // In-house prices are stored on whole-second ticks. Stamp the quote when it
-  // was read so a tick fetched just after expiry can settle that trade.
-  const timestamp = Date.now();
+  // In-house prices use whole-second ticks; settlement accepts the same 1s
+  // boundary tolerance as the database function below.
+  const timestamp = Date.parse(tick.tick_at);
   return { price, bid: price - spec.spread / 2, ask: price + spec.spread / 2, timestamp, candleTs: timestamp, source };
 }
 
@@ -152,13 +152,21 @@ export const settleDueRealTrades = createServerFn({ method: 'POST' }).middleware
   const db = serviceDatabase();
   const { data: due, error } = await db.from('real_trades').select('id,symbol,expires_at,market_source').eq('user_id', context.userId).eq('status', 'open').lte('expires_at', new Date().toISOString()).order('expires_at').limit(30);
   if (error) throw new Error('Could not check for expired real trades');
+  const settlementErrors: string[] = [];
   for (const trade of due ?? []) {
-    const quote = await marketQuote(db, trade.symbol, trade.market_source).catch(() => null);
-    if (!quote || quote.timestamp < Date.parse(trade.expires_at)) continue;
+    let quote: Awaited<ReturnType<typeof marketQuote>>;
+    try { quote = await marketQuote(db, trade.symbol, trade.market_source); }
+    catch (error) {
+      settlementErrors.push(error instanceof Error ? error.message : 'Could not load a settlement quote');
+      continue;
+    }
+    // The SQL settlement routine allows a one second boundary because in-house
+    // ticks are stored at whole-second precision. Match that rule here.
+    if (quote.timestamp + 1000 < Date.parse(trade.expires_at)) continue;
     const { error: settlementError } = await db.rpc('settle_real_trade', { p_trade_id: trade.id, p_close_price: quote.price, p_close_candle_ts: quote.candleTs });
     if (settlementError) {
       console.error(`Could not settle live trade ${trade.id}:`, settlementError);
-      throw new Error(`Could not settle an expired live trade: ${settlementError.message}`);
+      settlementErrors.push(settlementError.message);
     }
   }
   const [wallet, trades, settings] = await Promise.all([
@@ -167,7 +175,7 @@ export const settleDueRealTrades = createServerFn({ method: 'POST' }).middleware
     realTradingSettings(db),
   ]);
   if (wallet.error || trades.error) throw new Error('Could not refresh real account');
-  return { balance: Number(wallet.data?.balance ?? 0), trades: trades.data ?? [], settings };
+  return { balance: Number(wallet.data?.balance ?? 0), trades: trades.data ?? [], settings, settlementErrors };
 });
 
 export const getRealTradingAdmin = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
