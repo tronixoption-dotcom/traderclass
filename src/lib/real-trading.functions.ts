@@ -184,3 +184,12 @@ export const adjustRealTradingReserve = createServerFn({ method: 'POST' }).middl
   await context.supabase.from('admin_audit').insert({ actor_id: context.userId, action: `Adjusted real USDT payout reserve by ${data.delta}` });
   return { balance: Number(balance) };
 });
+
+export const setRealTradingReserveBalance = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ total: z.number().finite().min(0).max(100000000), note: z.string().trim().min(8).max(300) }).parse(value)).handler(async ({ data, context }) => {
+  await requireStaff(context.supabase, context.userId, context.claims, true);
+  const db = serviceDatabase();
+  const { data: available, error } = await db.rpc('set_real_trading_reserve_total', { p_actor_id: context.userId, p_total: data.total, p_note: data.note });
+  if (error || available === null) throw new Error(error?.message || 'Could not reconcile reserve balance');
+  await context.supabase.from('admin_audit').insert({ actor_id: context.userId, action: `Reconciled company USDT payout reserve to ${data.total}` });
+  return { available: Number(available) };
+});
