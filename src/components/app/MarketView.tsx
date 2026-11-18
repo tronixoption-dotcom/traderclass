@@ -460,12 +460,22 @@ function useTicket(symbol: string, marketSource: 'okx' | 'inhouse') {
     if (error) toast.error(error);
     else toast.success(`${direction.toUpperCase()} ${symbol} · ${stake} USDT · ${formatDuration(duration)} · ${marketSource === 'okx' ? 'OKX' : 'in-house'} price`);
   };
+  const disabledReason = !real ? null
+    : !siteSettings.trading_enabled ? 'Trading is paused by the administrator.'
+    : !realSettings.enabled ? 'Real-account trading is paused by the administrator.'
+    : !hasFreshMarketQuote(symbol) ? 'Waiting for a fresh market quote.'
+    : stake < realSettings.minStake ? `Minimum real-account stake is ${realSettings.minStake} USDT.`
+    : realSettings.maxStake > 0 && stake > realSettings.maxStake ? `Maximum real-account stake is ${realSettings.maxStake} USDT.`
+    : stake > realBalance ? `Available real-account balance is ${realBalance.toFixed(2)} USDT.`
+    : null;
   return {
     duration,
     stake,
     stakeText,
     currency: real ? 'USDT' : state.active,
     real,
+    disabledReason,
+    insufficientBalance: real && stake > realBalance,
     canTrade: real
       ? siteSettings.trading_enabled && realSettings.enabled && hasFreshMarketQuote(symbol) && stake >= realSettings.minStake && (realSettings.maxStake <= 0 || stake <= realSettings.maxStake) && stake <= realBalance
       : siteSettings.trading_enabled && stake >= 1 && stake <= state.balances[state.active],
@@ -520,8 +530,13 @@ function TradePanel({ symbol, marketSource }: { symbol: string; marketSource: 'o
         <TradeButton variant="sell" label="SELL" price={t.real && !hasFreshMarketQuote(symbol) ? "?" : q.bid.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("sell")} />
         <TradeButton variant="buy" label="BUY" price={t.real && !hasFreshMarketQuote(symbol) ? "?" : q.ask.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("buy")} />
       </div>
+      {t.disabledReason && <TradeGateNotice message={t.disabledReason} fundingRequired={t.insufficientBalance} compact />}
     </div>
   );
+}
+
+function TradeGateNotice({ message, fundingRequired, compact = false }: { message: string; fundingRequired: boolean; compact?: boolean }) {
+  return <p role="status" className={cn("text-muted-foreground", compact ? "mt-2 text-[10px] leading-[14px]" : "mt-3 px-1 text-[11px] leading-[16px]")}>{message}{fundingRequired && <> <Link to="/deposit" className="font-semibold text-primary underline underline-offset-2">Deposit USDT</Link> and wait for approval to enable real trades.</>}</p>;
 }
 
 function TradeButton({ variant, label, price, onClick, disabled = false }: { variant: "buy" | "sell"; label: string; price: string; onClick: () => void; disabled?: boolean }) {
@@ -615,6 +630,7 @@ function ManualTrade({ symbol, marketSource }: { symbol: string; marketSource: '
         <BigTradeButton variant="sell" price={t.real && !hasFreshMarketQuote(symbol) ? "?" : q.bid.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("sell")} />
         <BigTradeButton variant="buy" price={t.real && !hasFreshMarketQuote(symbol) ? "?" : q.ask.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("buy")} />
       </div>
+      {t.disabledReason && <TradeGateNotice message={t.disabledReason} fundingRequired={t.insufficientBalance} />}
       <p className="mt-[14px] px-[4px] text-[11px] leading-[16px] text-muted-foreground">Live contracts settle against the selected {marketSource === 'okx' ? 'OKX crypto' : 'in-house'} market price. These are platform contracts, not exchange orders.</p>
     </aside>
   );
