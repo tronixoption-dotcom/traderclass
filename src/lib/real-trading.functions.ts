@@ -84,7 +84,13 @@ export const getInhouseMarketHistory = createServerFn({ method: 'GET' }).middlew
   if (!response.ok) throw new Error('Could not load OKX market history');
   const payload = await response.json() as { code?: string; data?: string[][] };
   if (payload.code !== '0' || !payload.data?.length) throw new Error('OKX market history is unavailable');
-  return payload.data.slice().reverse().map((row) => ({ time: Math.floor(Number(row[0]) / 1000), price: Number(row[4]) }));
+  return payload.data.slice().reverse().map((row) => ({
+    time: Math.floor(Number(row[0]) / 1000),
+    open: Number(row[1]),
+    high: Number(row[2]),
+    low: Number(row[3]),
+    close: Number(row[4]),
+  }));
 });
 
 export const getRealTradingData = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {

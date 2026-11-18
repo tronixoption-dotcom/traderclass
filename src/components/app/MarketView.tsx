@@ -255,7 +255,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
                 decimals={getSymbol(symbol).decimals + 1}
               />
             </ClientOnly>
-            <ChartLegend symbol={symbol} />
+            <ChartLegend symbol={symbol} marketSource={marketSource} />
             {emojiOpen && tool === "emoji" && (
               <div className="absolute left-1 top-[250px] z-20 grid grid-cols-4 gap-1 rounded-lg border border-border bg-popover p-1.5 shadow-lg">
                 {EMOJIS.map((e) => (
@@ -350,7 +350,7 @@ function ActiveChip() {
   );
 }
 
-function ChartLegend({ symbol }: { symbol: string }) {
+function ChartLegend({ symbol, marketSource }: { symbol: string; marketSource: 'okx' | 'inhouse' }) {
   useTick();
   const q = getQuote(symbol);
   const s = getSymbol(symbol);
@@ -359,7 +359,7 @@ function ChartLegend({ symbol }: { symbol: string }) {
     <div className="pointer-events-none absolute left-[8px] right-[8px] top-[8px] z-10 md:left-[12px] md:top-[10px] md:flex md:flex-wrap md:items-center md:gap-x-[14px] md:gap-y-1">
       <div className="flex h-[20px] min-w-0 max-w-full items-center text-[16.5px] leading-none text-tv-foreground md:text-[18px]">
         <SymbolIcon symbol={symbol} />
-        <span className="ml-[5px] truncate">{s.name}</span>
+        <span className="ml-[5px] truncate">{marketSource === 'okx' ? s.name.replace('U.S. Dollar', 'Tether (USDT)') : s.name}</span>
         <span className="ml-[8px] flex h-[19px] shrink-0 overflow-hidden rounded-full">
           <span className="grid w-[24px] place-items-center bg-status-open">
             <span className="size-[8.5px] rounded-full bg-status-open-dot" />
@@ -483,7 +483,7 @@ function StakeInput({ t, className }: { t: ReturnType<typeof useTicket>; classNa
   const inputRef = useRef<HTMLInputElement>(null);
   return (
     <span className={cn("inline-flex items-center", className)} onClick={() => inputRef.current?.focus()}>
-      {t.real ? 'USDT ' : '$'}
+      {t.real ? <span className="mr-1">USDT</span> : '$'}
       <input
         ref={inputRef}
         aria-label="Stake amount"

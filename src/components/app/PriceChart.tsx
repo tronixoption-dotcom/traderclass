@@ -137,9 +137,13 @@ export function PriceChart({
         const grouped = new Map<number, Candle>();
         for (const row of rows) {
           const bucket = row.time - (row.time % timeframe);
+          const open = 'open' in row ? row.open : row.price;
+          const high = 'high' in row ? row.high : row.price;
+          const low = 'low' in row ? row.low : row.price;
+          const close = 'close' in row ? row.close : row.price;
           const current = grouped.get(bucket);
-          if (!current) grouped.set(bucket, { time: bucket, open: row.price, high: row.price, low: row.price, close: row.price });
-          else grouped.set(bucket, { ...current, high: Math.max(current.high, row.price), low: Math.min(current.low, row.price), close: row.price });
+          if (!current) grouped.set(bucket, { time: bucket, open, high, low, close });
+          else grouped.set(bucket, { ...current, high: Math.max(current.high, high), low: Math.min(current.low, low), close });
         }
         history = [...grouped.values()].slice(-(wide ? 320 : 160));
       } catch { history = []; }
