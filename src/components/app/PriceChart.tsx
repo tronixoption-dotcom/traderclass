@@ -131,7 +131,7 @@ export function PriceChart({
       let history: Candle[];
       if (practice) history = buildPracticeHistory(symbol, timeframe, wide ? 320 : 160);
       else try {
-        const rows = await loadMarketHistory({ data: { symbol, limit: 3600 } });
+        const rows = await loadMarketHistory({ data: { symbol, limit: 300, timeframe } });
         const grouped = new Map<number, Candle>();
         for (const row of rows) {
           const bucket = row.time - (row.time % timeframe);

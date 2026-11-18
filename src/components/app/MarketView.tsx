@@ -79,7 +79,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
       } catch (error) {
         if (active) {
           setQuoteStatus('error');
-          setQuoteError(error instanceof Error ? error.message : 'Could not load the in-house market price');
+          setQuoteError(error instanceof Error ? error.message : 'Could not load the OKX market price');
         }
       }
     };
@@ -110,7 +110,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex h-[45px] shrink-0 items-center justify-between px-[8.5px] md:h-[60px] md:px-[20px]">
         <div className="flex min-w-0 items-center gap-3">{!desktop && <div className="scale-75"><AdminEntry /></div>}<InstrumentPicker symbol={symbol} onChange={setSymbol} liveOnly={accountMode === 'real'} /></div>
-        <span title={quoteStatus === 'error' ? quoteError : undefined} role={accountMode === 'real' && quoteStatus === 'error' ? 'status' : undefined} className={`rounded-full px-2 py-1 text-[10px] font-bold ${accountMode === 'demo' || hasFreshMarketQuote(symbol) ? 'bg-success-soft text-success' : quoteStatus === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}>{accountMode === 'demo' ? 'DEMO MARKET' : hasFreshMarketQuote(symbol) ? 'IN-HOUSE MARKET' : quoteStatus === 'error' ? 'MARKET UNAVAILABLE' : 'CONNECTING'}</span>
+        <span title={quoteStatus === 'error' ? quoteError : undefined} role={accountMode === 'real' && quoteStatus === 'error' ? 'status' : undefined} className={`rounded-full px-2 py-1 text-[10px] font-bold ${accountMode === 'demo' || hasFreshMarketQuote(symbol) ? 'bg-success-soft text-success' : quoteStatus === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}>{accountMode === 'demo' ? 'DEMO MARKET' : hasFreshMarketQuote(symbol) ? 'OKX LIVE' : quoteStatus === 'error' ? 'MARKET UNAVAILABLE' : 'CONNECTING'}</span>
         <AccountPicker />
       </div>
 
@@ -444,12 +444,12 @@ function useTicket(symbol: string) {
       return;
     }
     if (!realSettings.enabled) { toast.error('Live account trading is currently paused by the administrator'); return; }
-    if (!hasFreshMarketQuote(symbol)) { toast.error('Waiting for a fresh in-house market quote'); return; }
+    if (!hasFreshMarketQuote(symbol)) { toast.error('Waiting for a fresh OKX market quote'); return; }
     if (stake < realSettings.minStake || (realSettings.maxStake > 0 && stake > realSettings.maxStake)) { toast.error(`Minimum stake is ${realSettings.minStake} USDT${realSettings.maxStake > 0 ? `; maximum is ${realSettings.maxStake} USDT` : ''}`); return; }
     if (stake > realBalance) { toast.error('Insufficient available USDT balance'); return; }
     const error = await submitRealTrade({ symbol, direction, stake, duration });
     if (error) toast.error(error);
-    else toast.success(`${direction.toUpperCase()} ${symbol} · ${stake} USDT · ${formatDuration(duration)} · in-house price`);
+    else toast.success(`${direction.toUpperCase()} ${symbol} · ${stake} USDT · ${formatDuration(duration)} · OKX market price`);
   };
   return {
     duration,
@@ -606,7 +606,7 @@ function ManualTrade({ symbol }: { symbol: string }) {
         <BigTradeButton variant="sell" price={t.real && !hasFreshMarketQuote(symbol) ? "?" : q.bid.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("sell")} />
         <BigTradeButton variant="buy" price={t.real && !hasFreshMarketQuote(symbol) ? "?" : q.ask.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("buy")} />
       </div>
-      <p className="mt-[14px] px-[4px] text-[11px] leading-[16px] text-muted-foreground">Live contracts settle against the in-house market price engine.</p>
+      <p className="mt-[14px] px-[4px] text-[11px] leading-[16px] text-muted-foreground">Live contracts settle against OKX crypto market prices. These are platform contracts, not OKX exchange orders.</p>
     </aside>
   );
 }

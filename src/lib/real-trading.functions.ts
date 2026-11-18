@@ -24,30 +24,47 @@ function marketSpec(symbol: string) {
   return spec;
 }
 
-async function inhouseQuote(db: ReturnType<typeof serviceDatabase>, symbol: string, until?: string) {
+function okxInstrument(symbol: string) {
   const spec = marketSpec(symbol);
-  const { data, error } = await db.rpc('advance_inhouse_market', {
-    p_symbol: symbol, p_base_price: spec.base, p_volatility: spec.vol,
-    ...(until ? { p_until: until } : {}),
-  });
-  const tick = data?.[0];
-  if (error || !tick) throw new Error(error?.message || 'In-house market price is unavailable');
-  return { price: Number(tick.price), timestamp: Date.parse(tick.tick_at), candleTs: Date.parse(tick.tick_at) };
+  if (spec.category !== 'Crypto' || !symbol.endsWith('USD')) throw new Error('OKX live prices are available for crypto markets only');
+  return `${symbol.slice(0, -3)}-USDT`;
+}
+
+async function okxQuote(symbol: string) {
+  const instId = okxInstrument(symbol);
+  const response = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${encodeURIComponent(instId)}`, { signal: AbortSignal.timeout(5000), cache: 'no-store' });
+  if (!response.ok) throw new Error(`OKX market request failed (${response.status})`);
+  const payload = await response.json() as { code?: string; msg?: string; data?: Array<{ last: string; bidPx: string; askPx: string; ts: string }> };
+  const row = payload.data?.[0];
+  const price = Number(row?.last);
+  const timestamp = Number(row?.ts);
+  if (payload.code !== '0' || !row || !Number.isFinite(price) || price <= 0 || !Number.isFinite(timestamp) || timestamp > Date.now() + 1000 || Date.now() - timestamp > 5000) {
+    throw new Error(payload.msg || `No fresh OKX spot market for ${instId}`);
+  }
+  return { price, bid: Number(row.bidPx) || price, ask: Number(row.askPx) || price, timestamp, candleTs: timestamp, instId };
+}
+
+async function inhouseQuote(db: ReturnType<typeof serviceDatabase>, symbol: string) {
+  const quote = await okxQuote(symbol);
+  const { error } = await db.from('inhouse_market_ticks').upsert({ symbol, tick_at: new Date(quote.timestamp).toISOString(), price: quote.price });
+  if (error) throw new Error('Could not save the OKX settlement quote');
+  return quote;
 }
 
 export const getInhouseMarketQuote = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ symbol: z.string().max(16) }).parse(value)).handler(async ({ data }) => {
   const db = serviceDatabase();
   const quote = await inhouseQuote(db, data.symbol);
-  const spec = marketSpec(data.symbol);
-  return { ...quote, bid: quote.price - spec.spread / 2, ask: quote.price + spec.spread / 2 };
+  return quote;
 });
 
-export const getInhouseMarketHistory = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ symbol: z.string().max(16), limit: z.number().int().min(10).max(3600) }).parse(value)).handler(async ({ data }) => {
-  const db = serviceDatabase();
-  await inhouseQuote(db, data.symbol);
-  const { data: rows, error } = await db.from('inhouse_market_ticks').select('tick_at,price').eq('symbol', data.symbol).order('tick_at', { ascending: false }).limit(data.limit);
-  if (error) throw new Error('Could not load in-house price history');
-  return (rows ?? []).reverse().map((row) => ({ time: Math.floor(Date.parse(row.tick_at) / 1000), price: Number(row.price) }));
+export const getInhouseMarketHistory = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ symbol: z.string().max(16), limit: z.number().int().min(10).max(3600), timeframe: z.number().int().optional() }).parse(value)).handler(async ({ data }) => {
+  const instId = okxInstrument(data.symbol);
+  const bar = data.timeframe && data.timeframe >= 86400 ? '1D' : data.timeframe && data.timeframe >= 14400 ? '4H' : data.timeframe && data.timeframe >= 3600 ? '1H' : data.timeframe && data.timeframe >= 1800 ? '30m' : data.timeframe && data.timeframe >= 900 ? '15m' : data.timeframe && data.timeframe >= 300 ? '5m' : '1m';
+  const response = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${encodeURIComponent(instId)}&bar=${bar}&limit=${Math.min(data.limit, 300)}`, { signal: AbortSignal.timeout(8000), cache: 'no-store' });
+  if (!response.ok) throw new Error('Could not load OKX market history');
+  const payload = await response.json() as { code?: string; data?: string[][] };
+  if (payload.code !== '0' || !payload.data?.length) throw new Error('OKX market history is unavailable');
+  return payload.data.slice().reverse().map((row) => ({ time: Math.floor(Number(row[0]) / 1000), price: Number(row[4]) }));
 });
 
 export const getRealTradingData = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
@@ -81,8 +98,8 @@ export const settleDueRealTrades = createServerFn({ method: 'POST' }).middleware
   const { data: due, error } = await db.from('real_trades').select('id,symbol,expires_at').eq('user_id', context.userId).eq('status', 'open').lte('expires_at', new Date().toISOString()).order('expires_at').limit(30);
   if (error) throw new Error('Could not check for expired real trades');
   for (const trade of due ?? []) {
-    const quote = await inhouseQuote(db, trade.symbol, trade.expires_at).catch(() => null);
-    if (!quote) continue;
+    const quote = await inhouseQuote(db, trade.symbol).catch(() => null);
+    if (!quote || quote.timestamp < Date.parse(trade.expires_at)) continue;
     const { error: settlementError } = await db.rpc('settle_real_trade', { p_trade_id: trade.id, p_close_price: quote.price, p_close_candle_ts: quote.candleTs });
     if (settlementError) {
       console.error(`Could not settle live trade ${trade.id}:`, settlementError);

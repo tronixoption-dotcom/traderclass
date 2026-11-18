@@ -39,7 +39,7 @@ export function InstrumentPicker({ symbol, onChange, disabled = false, robot = f
           </div>
           <CommandList className="max-h-[min(360px,45vh)]">
             <CommandEmpty>No instruments found.</CommandEmpty>
-            {SYMBOL_CATEGORIES.filter((label) => category === "All" || category === label).map((label) => {
+            {SYMBOL_CATEGORIES.filter((label) => (!liveOnly || label === 'Crypto') && (category === "All" || category === label)).map((label) => {
               const matches = instruments.filter((s) => s.category === label && `${s.id} ${s.name}`.toLowerCase().includes(query.trim().toLowerCase()));
               return matches.length ? <CommandGroup key={label} heading={`${label} · ${matches.length}`}>
                 {matches.map((s) => {
