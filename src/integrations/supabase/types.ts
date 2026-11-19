@@ -123,6 +123,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          phone: string
           referral_code: string
           referred_by: string | null
           updated_at: string
@@ -131,6 +132,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id: string
+          phone?: string
           referral_code: string
           referred_by?: string | null
           updated_at?: string
@@ -139,6 +141,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          phone?: string
           referral_code?: string
           referred_by?: string | null
           updated_at?: string

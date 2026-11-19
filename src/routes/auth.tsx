@@ -97,7 +97,7 @@ function AuthPage() {
           username: parsed.data.username,
           ref: parsed.data.referral.trim().toUpperCase(),
           country: selectedCountry.name,
-          phone: `${selectedCountry.dial}${parsed.data.mobile}`,
+          phone: `${selectedCountry.dial}${parsed.data.mobile.replace(/^0/, '')}`,
         },
       },
     });

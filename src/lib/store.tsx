@@ -47,7 +47,7 @@ export type RobotConfig = {
   startedAt?: number;
 };
 
-export type Profile = { username: string; referral_code: string };
+export type Profile = { username: string; referral_code: string; phone: string };
 export type AuthUser = { id: string; email: string | null };
 
 export type AppState = {
@@ -98,6 +98,7 @@ type Ctx = {
   submitRealTrade: (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean; marketSource?: 'okx' }) => Promise<string | null>;
   setTheme: (t: "light" | "dark") => void;
   setName: (n: string) => void;
+  setProfilePhone: (phone: string) => void;
   setRobot: (r: Partial<RobotConfig>) => void;
   reset: () => void;
 };
@@ -347,7 +348,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setAuthReady(false);
       setUser({ id: u.id, email: u.email ?? null });
       const [{ data: prof }, { data: practice }] = await Promise.all([
-        supabase.from("profiles").select("username, referral_code").eq("id", u.id).maybeSingle(),
+        supabase.from("profiles").select("username, referral_code, phone").eq("id", u.id).maybeSingle(),
         supabase.from("practice_accounts").select("state").eq("user_id", u.id).maybeSingle(),
       ]);
       if (!active) return;
@@ -430,6 +431,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             .eq("id", user.id)
             .then(({ error }) => error && toast.error("Couldn't save your username"));
         }
+      },
+      setProfilePhone: (phone) => {
+        setProfile((current) => current ? { ...current, phone } : current);
       },
       setRobot: (r) => {
         if (r.running && ref.current.accountMode === 'real') {

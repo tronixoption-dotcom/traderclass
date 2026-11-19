@@ -15,7 +15,7 @@ const PRESETS = [10, 25, 50, 100, 250, 500];
 const money = (amount: number, asset: string) => `${asset === 'KES' ? 'KES ' : '$'}${Number(amount).toLocaleString('en-US', { maximumFractionDigits: asset === 'KES' ? 0 : 8 })}${asset === 'USDT' ? ' USDT' : ''}`;
 
 export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
-  const { user } = useStore();
+  const { user, profile } = useStore();
   const [data, setData] = useState<FundingData | null>(null);
   const [mpesa, setMpesa] = useState<MpesaData | null>(null);
   const [methodId, setMethodId] = useState('mpesa');
@@ -68,10 +68,10 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
     try {
       if (methodId === 'mpesa') {
         const result = mode === 'deposit'
-          ? await initiateMpesaDeposit({ data: { amountKes: value, phone: contact } })
+          ? await initiateMpesaDeposit({ data: { amountKes: value } })
           : currency === 'USDT'
-            ? await requestUsdtMpesaWithdrawal({ data: { amountUsdt: value, phone: contact } })
-            : await requestMpesaWithdrawal({ data: { amountKes: value, phone: contact } });
+            ? await requestUsdtMpesaWithdrawal({ data: { amountUsdt: value } })
+            : await requestMpesaWithdrawal({ data: { amountKes: value } });
         toast.success(result.message);
       } else if (selected) {
         if (mode === 'deposit') {
@@ -152,8 +152,8 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
         : <>Fee {feePercent}% ({money(feeAmount,currency)}) · {mode==='deposit'?'Estimated wallet credit':'Estimated payout'}: <span className="font-semibold text-foreground">{money(netAmount,currency)}</span></>}</p>}
     <div className="flex flex-wrap gap-2">{presets.filter((preset) => mode === 'deposit' || preset <= walletBalance(currency)).map((preset) => <button key={preset} type="button" onClick={() => setAmount(String(preset))} className={`rounded-lg border px-3 py-2 text-sm ${amountNumber===preset?'border-2 border-primary bg-primary/10':'border-border hover:bg-muted'}`}>{money(preset,currency)}</button>)}</div>
     <div><p className="mb-2 text-sm font-medium">Payment method</p><button type="button" onClick={() => setChoosingMethod(true)} className="flex h-[68px] w-full items-center gap-3 rounded-[13px] border border-input bg-background px-4 text-left hover:bg-muted/50"><PlatformMark name={current.name}/><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{current.name}</span><span className="mt-1 block text-xs text-muted-foreground">{methodId === 'mpesa' && mode === 'withdraw' && currency === 'USDT' ? 'USDT wallet → KES payout' : `${current.asset}${current.network ? ` · ${current.network}` : ''}`}</span></span><ChevronRight className="size-5 text-muted-foreground"/></button></div>
-    {methodId === 'mpesa' ? <label className="block text-sm font-semibold">{mode === 'deposit' ? 'M-Pesa phone number' : 'M-Pesa phone number'}<Input className="mt-2 h-12" inputMode="tel" autoComplete="tel" placeholder="07XXXXXXXX" value={contact} onChange={(event)=>setContact(event.target.value)}/></label> : mode === 'deposit' ? <label className="block text-sm font-semibold">Transaction hash / payment reference<Input className="mt-2 h-12 font-mono" placeholder="Paste transaction ID" value={reference} onChange={(event)=>setReference(event.target.value)}/></label> : <label className="block text-sm font-semibold">Your {currency} wallet address<Input className="mt-2 h-12 font-mono" placeholder="Enter your receiving wallet" value={contact} onChange={(event)=>setContact(event.target.value)}/></label>}
-    <Button className="h-14 w-full rounded-full text-base font-bold" disabled={busy||!configured||!amount||!accountFundingEnabled} onClick={()=>void submit()}>{busy?'Please wait…':mode==='deposit'?'Deposit':'Withdraw'}<ArrowRight className="ml-2 size-5"/></Button>
+    {methodId === 'mpesa' ? <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-3 text-sm"><span className="min-w-0"><span className="block text-xs text-muted-foreground">Registered M-Pesa number</span><b className="block truncate">{profile?.phone || 'No number saved'}</b></span><Link to="/profile" className="shrink-0 font-semibold text-primary underline">Edit in profile</Link></div> : mode === 'deposit' ? <label className="block text-sm font-semibold">Transaction hash / payment reference<Input className="mt-2 h-12 font-mono" placeholder="Paste transaction ID" value={reference} onChange={(event)=>setReference(event.target.value)}/></label> : <label className="block text-sm font-semibold">Your {currency} wallet address<Input className="mt-2 h-12 font-mono" placeholder="Enter your receiving wallet" value={contact} onChange={(event)=>setContact(event.target.value)}/></label>}
+    <Button className="h-14 w-full rounded-full text-base font-bold" disabled={busy||!configured||!amount||!accountFundingEnabled||(methodId==='mpesa'&&!profile?.phone)} onClick={()=>void submit()}>{busy?'Please wait…':mode==='deposit'?'Deposit':'Withdraw'}<ArrowRight className="ml-2 size-5"/></Button>
     <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground"><Clock3 className="size-3.5"/>{mode==='deposit'&&methodId!=='mpesa'?'Crypto deposits are credited after an admin confirms the transaction on-chain.':mode==='withdraw'&&methodId!=='mpesa'?'The selected amount is reserved while an admin processes the payout.':'Your balance updates when the M-Pesa transaction is confirmed.'}</p>
     <p className="text-center text-[11px] leading-5 text-muted-foreground">M-Pesa deposits are converted into your USDT trading balance automatically. You can withdraw that USDT to M-Pesa or use an enabled crypto withdrawal method.</p>
   </section></div>;

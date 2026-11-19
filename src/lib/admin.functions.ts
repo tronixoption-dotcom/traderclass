@@ -16,7 +16,7 @@ export const lockAdmin=createServerFn({method:'POST'}).middleware([requireSupaba
 export const getAdminData=createServerFn({method:'POST'}).middleware([requireSupabaseAuth]).handler(async({context})=>{
   const {supabase,userId}=context;const roles=await requireStaff(supabase,userId,context.claims);const admin=roles.includes('admin');const agent=admin||roles.includes('agent');const support=admin||roles.includes('support');
   const check=<T,>(r:{data:T|null;error:unknown})=>{if(r.error)throw new Error('Could not load admin records');return r.data;};
-  const profiles=agent?check(await supabase.from('profiles').select('id,username,referral_code,created_at').order('created_at',{ascending:false})):[];
+  const profiles=agent?check(await supabase.from('profiles').select('id,username,phone,referral_code,created_at').order('created_at',{ascending:false})):[];
   const practiceAccounts=agent?check(await supabase.from('practice_accounts').select('user_id,state')):[];
   const liveTrades=agent?check(await supabase.from('real_trades').select('*').order('created_at',{ascending:false}).limit(500)):[];
   const liveWallets=admin?check(await supabase.from('funding_wallets').select('user_id,asset,balance')):[];
@@ -31,7 +31,8 @@ export const getAdminData=createServerFn({method:'POST'}).middleware([requireSup
     const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     if (error) throw new Error('Could not load client profiles');
-    clientAuth = data.users.map((user) => ({ id: user.id, email: user.email ?? null, phone: user.phone ?? String(user.user_metadata?.['phone'] ?? ''), full_name: String(user.user_metadata?.['full_name'] ?? user.user_metadata?.['name'] ?? user.user_metadata?.['username'] ?? ''), status: user.banned_until ? 'FROZEN' : 'ACTIVE' }));
+    const registeredPhones = new Map((profiles ?? []).map((profile) => [profile.id, profile.phone]));
+    clientAuth = data.users.map((user) => ({ id: user.id, email: user.email ?? null, phone: registeredPhones.get(user.id) || user.phone || String(user.user_metadata?.['phone'] ?? ''), full_name: String(user.user_metadata?.['full_name'] ?? user.user_metadata?.['name'] ?? user.user_metadata?.['username'] ?? ''), status: user.banned_until ? 'FROZEN' : 'ACTIVE' }));
   }
   return {roles,userId,profiles:profiles??[],clientAuth,practiceAccounts:practiceAccounts??[],liveTrades:liveTrades??[],liveWallets:liveWallets??[],walletControls:walletControls??[],tickets:tickets??[],team:team??[],invitations:invitations??[],audit:audit??[],settings};
 });

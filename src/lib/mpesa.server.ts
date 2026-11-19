@@ -66,10 +66,19 @@ async function darajaPost(path: string, payload: Record<string, unknown>, bearer
 }
 
 function phoneNumber(input: string) {
-  const digits = input.replace(/\D/g, '');
+  let digits = input.replace(/\D/g, '');
+  if (digits.startsWith('2540')) digits = `254${digits.slice(4)}`;
   const normalized = digits.startsWith('0') ? `254${digits.slice(1)}` : digits.startsWith('254') ? digits : `254${digits}`;
   if (!/^254(?:7|1)\d{8}$/.test(normalized)) throw new Error('Enter a valid Kenyan M-Pesa phone number');
   return normalized;
+}
+
+async function registeredMpesaNumber(db: Db, userId: string) {
+  const { data, error } = await db.from('profiles').select('phone').eq('id', userId).maybeSingle();
+  if (error) throw new Error('Could not load your registered M-Pesa number');
+  if (!data?.phone?.trim()) throw new Error('Add your M-Pesa number in Profile before making an M-Pesa transaction');
+  try { return phoneNumber(data.phone); }
+  catch { throw new Error('Your registered number cannot receive M-Pesa. Update it to a Kenyan number in Profile.'); }
 }
 
 function amount(value: number) {
@@ -110,15 +119,15 @@ async function submitB2cPayout(db: Db, txId: string, phone: string, bearer: stri
   }
 }
 
-export async function startStkDeposit(userId: string, rawAmount: number, rawPhone: string) {
+export async function startStkDeposit(userId: string, rawAmount: number) {
   const kes = amount(rawAmount);
-  const phone = phoneNumber(rawPhone);
+  const db = database();
+  const phone = await registeredMpesaNumber(db, userId);
   darajaBase();
   const shortcode = required('DARAJA_STK_SHORTCODE');
   const passkey = required('DARAJA_STK_PASSKEY');
   const callback = callbackUrl('DARAJA_CALLBACK_URL');
   const bearer = await token();
-  const db = database();
   await requirePaymentsEnabled(db, 'deposit');
   const { data: walletControl, error: controlError } = await db.from('client_wallet_controls').select('deposits_enabled').eq('user_id', userId).maybeSingle();
   if (controlError) throw new Error('Could not check deposit access');
@@ -160,13 +169,13 @@ export async function startStkDeposit(userId: string, rawAmount: number, rawPhon
   }
 }
 
-export async function startB2cWithdrawal(userId: string, rawAmount: number, rawPhone: string) {
+export async function startB2cWithdrawal(userId: string, rawAmount: number) {
   const kes = amount(rawAmount);
-  const phone = phoneNumber(rawPhone);
+  const db = database();
+  const phone = await registeredMpesaNumber(db, userId);
   darajaBase();
   const config = b2cConfig();
   const bearer = await token();
-  const db = database();
   await requirePaymentsEnabled(db, 'withdrawal');
   const { data: walletControl, error: controlError } = await db.from('client_wallet_controls').select('withdrawals_enabled').eq('user_id', userId).maybeSingle();
   if (controlError) throw new Error('Could not check withdrawal access');
@@ -186,15 +195,15 @@ export async function startB2cWithdrawal(userId: string, rawAmount: number, rawP
   return submitB2cPayout(db, txId, phone, bearer, config);
 }
 
-export async function startUsdtB2cWithdrawal(userId: string, rawAmount: number, rawPhone: string) {
+export async function startUsdtB2cWithdrawal(userId: string, rawAmount: number) {
   if (!Number.isFinite(rawAmount) || rawAmount <= 0 || rawAmount > 1_000_000 || Math.round(rawAmount * 1e8) !== rawAmount * 1e8) {
     throw new Error('Enter a valid USDT amount with up to 8 decimal places');
   }
-  const phone = phoneNumber(rawPhone);
+  const db = database();
+  const phone = await registeredMpesaNumber(db, userId);
   darajaBase();
   const config = b2cConfig();
   const bearer = await token();
-  const db = database();
   await requirePaymentsEnabled(db, 'withdrawal');
   const { count, error: countError } = await db.from('mpesa_transactions').select('id', { count: 'exact', head: true })
     .eq('user_id', userId).eq('kind', 'withdrawal').eq('status', 'processing');
