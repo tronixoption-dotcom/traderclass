@@ -17,6 +17,8 @@ export function AdminClients({ profiles, liveWallets = [], practiceAccounts = []
   const [selected, setSelected] = useState<Profile | null>(null);
   const [agentFilter, setAgentFilter] = useState(false);
   const controlByUser = useMemo(() => new Map(controls.map((control) => [control.user_id, control])), [controls]);
+  const staffByUser = useMemo(() => new Map(staff.map((member) => [member.user_id, member.role])), [staff]);
+  const isAgent = (userId: string) => controlByUser.get(userId)?.agent_enabled === true || staffByUser.get(userId) === 'agent';
   const practiceByUser = useMemo(() => new Map(practiceAccounts.map((account) => [account.user_id, account.state as Record<string, unknown>])), [practiceAccounts]);
   const visibleProfiles = profiles.filter((profile) => {
     const match = `${profile.username} ${profile.full_name ?? ''} ${profile.email ?? ''} ${profile.id} ${profile.referral_code}`.toLowerCase().includes(search.toLowerCase());
@@ -28,7 +30,7 @@ export function AdminClients({ profiles, liveWallets = [], practiceAccounts = []
     const balances = state?.['balances'] as Record<string, unknown> | undefined;
     return Number(balances?.[asset] ?? 0);
   };
-  const totals = (source: 'real' | 'demo', asset: string) => profiles.reduce((sum, profile) => sum + (source === 'real' ? balance(profile.id, asset) : practiceBalance(profile.id, asset)), 0);
+  const totals = (source: 'real' | 'demo', asset: string) => profiles.reduce((sum, profile) => sum + (isAgent(profile.id) ? 0 : source === 'real' ? balance(profile.id, asset) : practiceBalance(profile.id, asset)), 0);
   const recentTrades = (profile: Profile) => {
     const real = trades.filter((trade) => trade.user_id === profile.id).map((trade) => ({ id: trade.id, symbol: trade.symbol ?? 'Market', status: trade.status, stake: Number(trade.stake), payout: Number(trade.payout ?? 0), date: trade.created_at ?? '' }));
     const state = practiceByUser.get(profile.id);
@@ -68,8 +70,9 @@ export function AdminClients({ profiles, liveWallets = [], practiceAccounts = []
   </div>;
 }
 
-export function AdminOverview({ wallets, trades }: { wallets: Wallet[]; trades: LiveTrade[] }) {
-  const balance = (asset: string) => wallets.filter((wallet) => wallet.asset === asset).reduce((sum, wallet) => sum + Number(wallet.balance), 0);
+export function AdminOverview({ wallets, trades, controls = [], staff = [] }: { wallets: Wallet[]; trades: LiveTrade[]; controls?: ClientControl[]; staff?: { user_id: string; role: string }[] }) {
+  const agentIds = new Set([...controls.filter((control) => control.agent_enabled).map((control) => control.user_id), ...staff.filter((member) => member.role === 'agent').map((member) => member.user_id)]);
+  const balance = (asset: string) => wallets.filter((wallet) => wallet.asset === asset && !agentIds.has(wallet.user_id)).reduce((sum, wallet) => sum + Number(wallet.balance), 0);
   const stats = [
     { label: 'Customer USD balances', value: formatMoney(balance('USD')) },
     { label: 'Customer USDT balances', value: `${balance('USDT').toLocaleString()} USDT` },

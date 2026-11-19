@@ -132,7 +132,7 @@ export async function startStkDeposit(userId: string, rawAmount: number) {
   const { data: walletControl, error: controlError } = await db.from('client_wallet_controls').select('deposits_enabled').eq('user_id', userId).maybeSingle();
   if (controlError) throw new Error('Could not check deposit access');
   if (walletControl && !walletControl.deposits_enabled) throw new Error('Deposits are disabled for this account');
-  const { data: paymentSettings, error: settingsError } = await db.from('site_settings').select('deposit_fee_percent,kes_per_usdt').eq('id', true).single();
+  const { data: paymentSettings, error: settingsError } = await db.from('site_settings').select('deposit_fee_percent,kes_per_usdt,minimum_deposit_usdt').eq('id', true).single();
   if (settingsError || !paymentSettings) throw new Error('Could not load deposit fee settings');
   const feeKes = Math.round(kes * Number(paymentSettings.deposit_fee_percent ?? 0) / 100);
   const netKes = kes - feeKes;
@@ -141,6 +141,7 @@ export async function startStkDeposit(userId: string, rawAmount: number) {
   if (!Number.isFinite(conversionRate) || conversionRate <= 0) throw new Error('M-Pesa exchange rate is unavailable');
   const convertedUsdt = Number((netKes / conversionRate).toFixed(8));
   if (convertedUsdt <= 0) throw new Error('Deposit is too small to convert into USDT');
+  if (convertedUsdt < Number(paymentSettings.minimum_deposit_usdt ?? 10)) throw new Error(`Minimum deposit is ${Number(paymentSettings.minimum_deposit_usdt ?? 10)} USDT after fees`);
   const { count, error: countError } = await db.from('mpesa_transactions').select('id', { count: 'exact', head: true })
     .eq('user_id', userId).eq('kind', 'deposit').eq('status', 'pending').gte('created_at', new Date(Date.now() - 5 * 60_000).toISOString());
   if (countError) throw new Error('Could not check recent payment requests');
@@ -172,6 +173,10 @@ export async function startStkDeposit(userId: string, rawAmount: number) {
 export async function startB2cWithdrawal(userId: string, rawAmount: number) {
   const kes = amount(rawAmount);
   const db = database();
+  const { data: minSettings, error: minSettingsError } = await db.from('site_settings').select('minimum_withdrawal_usdt,kes_per_usdt').eq('id', true).single();
+  if (minSettingsError || !minSettings) throw new Error('Could not load withdrawal minimum settings');
+  const minimumKes = Math.ceil(Number(minSettings.minimum_withdrawal_usdt ?? 1) * Number(minSettings.kes_per_usdt ?? 130.05));
+  if (kes < minimumKes) throw new Error(`Minimum withdrawal is ${minimumKes.toLocaleString()} KES`);
   const phone = await registeredMpesaNumber(db, userId);
   darajaBase();
   const config = b2cConfig();
@@ -200,6 +205,9 @@ export async function startUsdtB2cWithdrawal(userId: string, rawAmount: number) 
     throw new Error('Enter a valid USDT amount with up to 8 decimal places');
   }
   const db = database();
+  const { data: minSettings, error: minSettingsError } = await db.from('site_settings').select('minimum_withdrawal_usdt').eq('id', true).single();
+  if (minSettingsError || !minSettings) throw new Error('Could not load withdrawal minimum settings');
+  if (rawAmount < Number(minSettings.minimum_withdrawal_usdt ?? 1)) throw new Error(`Minimum withdrawal is ${Number(minSettings.minimum_withdrawal_usdt ?? 1)} USDT`);
   const phone = await registeredMpesaNumber(db, userId);
   darajaBase();
   const config = b2cConfig();

@@ -29,11 +29,13 @@ export function AdminSettingsPanel({ settings, setSettings, audit, busy, onSave,
   );
   return <form className="space-y-7" onSubmit={(event) => { event.preventDefault(); if (pricingIsValid) onSave(); }}>
     <section className="space-y-4 rounded-xl border border-border bg-card p-4">
-      <div><h2 className="text-lg font-semibold">Crypto deposits and withdrawals</h2><p className="mt-1 text-sm text-muted-foreground">Configure USDT network, wallet address, instructions, and per-method minimums in Payment methods.</p></div>
-      <Button type="button" variant="outline" onClick={onPaymentMethods}>Manage wallet address, network and minimums</Button>
+      <div><h2 className="text-lg font-semibold">Crypto deposits and withdrawals</h2><p className="mt-1 text-sm text-muted-foreground">Set global USDT minimums here. Configure each receiving wallet, network, and any higher per-method minimum in Payment methods.</p></div>
+      <Button type="button" variant="outline" onClick={onPaymentMethods}>Manage wallets and per-method minimums</Button>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="space-y-2 text-sm font-medium">Deposit fee (%)<Input type="number" min="0" max="99.99" step="0.01" value={settings.deposit_fee_percent} onChange={(event) => patchSettings({ deposit_fee_percent: Number(event.target.value) || 0 })}/></label>
         <label className="space-y-2 text-sm font-medium">Withdrawal fee (%)<Input type="number" min="0" max="99.99" step="0.01" value={settings.withdrawal_fee_percent} onChange={(event) => patchSettings({ withdrawal_fee_percent: Number(event.target.value) || 0 })}/></label>
+        <label className="space-y-2 text-sm font-medium">Minimum deposit (USDT)<Input type="number" min="10" max="1000000" step="any" value={settings.minimum_deposit_usdt} onChange={(event) => patchSettings({ minimum_deposit_usdt: Math.max(10, Number(event.target.value) || 10) })}/><span className="block text-xs font-normal text-muted-foreground">Applies to all crypto deposits and M-Pesa deposits after conversion. Per-method minimums can be higher.</span></label>
+        <label className="space-y-2 text-sm font-medium">Minimum withdrawal (USDT)<Input type="number" min="0.00000001" max="1000000" step="any" value={settings.minimum_withdrawal_usdt} onChange={(event) => patchSettings({ minimum_withdrawal_usdt: Math.max(0.00000001, Number(event.target.value) || 0.00000001) })}/><span className="block text-xs font-normal text-muted-foreground">Applies to crypto withdrawals and USDT withdrawals to M-Pesa.</span></label>
         <label className="space-y-2 text-sm font-medium">M-Pesa conversion rate (KES per 1 USDT)<Input type="number" min="1" max="10000" step="0.01" value={settings.kes_per_usdt} onChange={(event) => patchSettings({ kes_per_usdt: Math.min(10000, Math.max(1, Number(event.target.value) || 1)) })}/><span className="block text-xs font-normal text-muted-foreground">Used for new M-Pesa deposits and USDT withdrawals to M-Pesa. The rate is saved with each transaction.</span></label>
       </div>
     </section>

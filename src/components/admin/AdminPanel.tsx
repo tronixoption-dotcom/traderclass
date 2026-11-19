@@ -38,7 +38,7 @@ export function AdminPanel(){
  <div className="space-y-5 p-4 lg:p-8">
  {section==='Clients'&&<AdminClients profiles={clientProfiles} liveWallets={d.liveWallets??[]} practiceAccounts={d.practiceAccounts??[]} controls={d.walletControls??[]} trades={d.liveTrades??[]} staff={d.team??[]} showLiveBalances={d.roles.includes('admin')} search={search} onSearch={setSearch} onControl={(userId,field,enabled)=>{void perform(()=>walletControlAction({data:{userId,field,enabled}}));}}/>}
  {section==='Payment methods'&&<FundingAdmin view="methods"/>}
- {section==='Accounts'&&<AdminOverview wallets={d.liveWallets??[]} trades={d.liveTrades??[]}/>}
+ {section==='Accounts'&&<AdminOverview wallets={d.liveWallets??[]} trades={d.liveTrades??[]} controls={d.walletControls??[]} staff={d.team??[]}/>}
  {section==='Treasury'&&<div className="space-y-6"><RealTradingAdmin/><FundingAdmin view="all"/></div>}
  {section==='Admin access'&&<section className="space-y-4"><h2 className="font-bold">Staff permissions</h2><Records headers={['Staff member','Permission']} rows={d.team.map(m=>[profiles.get(m.user_id)?.username??m.user_id,m.role])} empty="No active staff."/><Button onClick={()=>setSection('Teams')}><UsersRound/>Manage team</Button></section>}
  {section==='Deposits'&&<FundingAdmin view="deposits"/>}
