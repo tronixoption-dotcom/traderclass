@@ -43,14 +43,22 @@ export const getFundingAdmin = createServerFn({ method: 'POST' }).middleware([re
   if (!roles.includes('admin') && !roles.includes('agent')) throw new Error('Funding access required');
   const [methods, transactions, mpesaTransactions, profiles] = await Promise.all([
     context.supabase.from('funding_methods').select('*').order('sort_order'),
-    context.supabase.from('funding_transactions').select('*').in('status', ['under_review','processing']).order('created_at'),
-    context.supabase.from('mpesa_transactions').select('*').order('created_at', { ascending: false }).limit(200),
+    context.supabase.from('funding_transactions').select('*').order('created_at', { ascending: false }).limit(1000),
+    context.supabase.from('mpesa_transactions').select('id,user_id,kind,status,amount_kes,phone_number,mpesa_receipt_number,result_description,created_at,fee_amount_kes,net_amount_kes,converted_usdt,source_asset,source_amount_usdt,conversion_rate').order('created_at', { ascending: false }).limit(1000),
     context.supabase.from('profiles').select('id,username'),
   ]);
   if (methods.error || transactions.error || mpesaTransactions.error || profiles.error) throw new Error('Could not load funding administration');
   const { data: controls, error: controlsError } = roles.includes('admin') ? await context.supabase.from('client_wallet_controls').select('*') : { data: [], error: null };
   if (controlsError) throw new Error('Could not load funding administration');
-  return { methods: methods.data ?? [], transactions: transactions.data ?? [], mpesaTransactions: mpesaTransactions.data ?? [], profiles: profiles.data ?? [], controls: controls ?? [] };
+  return { methods: methods.data ?? [], transactions: transactions.data ?? [], mpesaTransactions: mpesaTransactions.data ?? [], profiles: profiles.data ?? [], controls: controls ?? [], canReview: roles.includes('admin') };
+});
+
+export const reviewMpesaTransaction = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => z.object({ id: z.string().uuid(), approve: z.boolean(), note: z.string().trim().max(500).default(''), receipt: z.string().trim().max(64).default('') }).parse(value)).handler(async ({ data, context }) => {
+  await requireStaff(context.supabase, context.userId, context.claims, true);
+  const { error } = await context.supabase.rpc('admin_review_mpesa_transaction', { p_transaction_id: data.id, p_approve: data.approve, p_note: data.note, p_receipt: data.receipt || null });
+  if (error) throw new Error(error.message || 'Could not review M-Pesa transaction');
+  await context.supabase.from('admin_audit').insert({ actor_id: context.userId, action: `${data.approve ? 'Approved' : 'Rejected'} M-Pesa ${data.id}` });
+  return { ok: true };
 });
 
 export const saveFundingMethod = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => configuredMethodInput.parse(value)).handler(async ({ data, context }) => {
