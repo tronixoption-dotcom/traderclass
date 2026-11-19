@@ -89,6 +89,10 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
     return () => { active = false; clearInterval(timer); };
   }, [accountMode, symbol, user?.id, marketSource, loadMarketQuote]);
 
+  useEffect(() => {
+    if (accountMode === 'real' && getSymbol(symbol).category !== 'Crypto') setSymbol('BTCUSD');
+  }, [accountMode, symbol]);
+
   const snapshot = () => {
     if (!api) return;
     api.chart.takeScreenshot().toBlob((b) => {
