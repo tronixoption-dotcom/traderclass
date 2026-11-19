@@ -15,8 +15,15 @@ export function AdminSettingsPanel({ settings, setSettings, audit, busy, onSave,
   onPaymentMethods: () => void;
 }) {
   const patchSettings = (patch: Partial<SiteSettings>) => setSettings({ ...settings, ...patch });
-  const impliedMultiplier = settings.real_win_rate_target_percent > 0 ? settings.real_rtp_target_percent / settings.real_win_rate_target_percent : 0;
-  const pricingIsValid = Number.isFinite(impliedMultiplier) && settings.real_rtp_target_percent > settings.real_win_rate_target_percent;
+  const userRealMultiplier = settings.user_real_win_rate_percent <= 0 ? 1 : Math.max(1, settings.real_rtp_target_percent / settings.user_real_win_rate_percent);
+  const agentRealMultiplier = settings.agent_real_win_rate_percent <= 0 ? 1 : Math.max(1, settings.real_rtp_target_percent / settings.agent_real_win_rate_percent);
+  const pricingIsValid = [settings.user_real_win_rate_percent, settings.agent_real_win_rate_percent].every((rate) => rate === 0 || rate === 100 || settings.real_rtp_target_percent > rate);
+  const winRateFields = [
+    ['user_demo_win_rate_percent', 'Normal user demo win rate'],
+    ['user_real_win_rate_percent', 'Normal user real win rate'],
+    ['agent_demo_win_rate_percent', 'Agent demo win rate'],
+    ['agent_real_win_rate_percent', 'Agent real win rate'],
+  ] as const;
   const numberField = (key: 'real_min_stake' | 'real_max_stake' | 'real_daily_loss_cap' | 'real_weekly_loss_cap' | 'real_monthly_loss_cap' | 'real_market_exposure_cap' | 'real_user_exposure_cap', label: string, help?: string) => (
     <label className="space-y-2 text-sm font-medium" key={key}>{label}<Input type="number" min="0" step="any" value={settings[key]} onChange={(event) => patchSettings({ [key]: Number(event.target.value) || 0 })}/>{help && <span className="block text-xs font-normal text-muted-foreground">{help}</span>}</label>
   );
@@ -32,24 +39,24 @@ export function AdminSettingsPanel({ settings, setSettings, audit, busy, onSave,
     </section>
 
     <section className="space-y-4 rounded-xl border border-border bg-card p-4">
-      <div><h2 className="text-lg font-semibold">Core economics</h2><p className="mt-1 text-sm text-muted-foreground">These settings price payouts for new live contracts. Contract results follow the selected OKX market price at expiry.</p></div>
+      <div><h2 className="text-lg font-semibold">Core economics</h2><p className="mt-1 text-sm text-muted-foreground">RTP sets real-trade payout size. The four win-rate controls determine outcomes separately for normal users and agents across demo and real accounts.</p></div>
       <label className="block max-w-sm space-y-2 text-sm font-medium">Pricing model preset<Select value={settings.real_pricing_model} onValueChange={(value) => {
-        if (value === 'standard') patchSettings({ real_pricing_model: 'standard', real_rtp_target_percent: 95, real_win_rate_target_percent: 55.8824 });
-        else if (value === 'conservative') patchSettings({ real_pricing_model: 'conservative', real_rtp_target_percent: 90, real_win_rate_target_percent: 55.8824 });
-        else if (value === 'aggressive') patchSettings({ real_pricing_model: 'aggressive', real_rtp_target_percent: 98, real_win_rate_target_percent: 55.8824 });
+        if (value === 'standard') patchSettings({ real_pricing_model: 'standard', real_rtp_target_percent: 95, real_win_rate_target_percent: 55.8824, user_real_win_rate_percent: 55.8824, agent_real_win_rate_percent: 55.8824 });
+        else if (value === 'conservative') patchSettings({ real_pricing_model: 'conservative', real_rtp_target_percent: 90, real_win_rate_target_percent: 55.8824, user_real_win_rate_percent: 55.8824, agent_real_win_rate_percent: 55.8824 });
+        else if (value === 'aggressive') patchSettings({ real_pricing_model: 'aggressive', real_rtp_target_percent: 98, real_win_rate_target_percent: 55.8824, user_real_win_rate_percent: 55.8824, agent_real_win_rate_percent: 55.8824 });
         else patchSettings({ real_pricing_model: 'custom' });
       }}><SelectTrigger aria-label="Pricing model preset"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="standard">Standard</SelectItem><SelectItem value="conservative">Conservative</SelectItem><SelectItem value="aggressive">Aggressive</SelectItem><SelectItem value="custom">Custom</SelectItem></SelectContent></Select></label>
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="space-y-2 text-sm font-medium">Target RTP (%)<Input type="number" min="0.00000001" step="any" value={settings.real_rtp_target_percent} onChange={(event) => patchSettings({ real_pricing_model: 'custom', real_rtp_target_percent: Number(event.target.value) || 0 })}/><span className="block text-xs font-normal text-muted-foreground">Expected gross return based on the target win rate assumption.</span></label>
-        <label className="space-y-2 text-sm font-medium">Target win rate assumption (%)<Input type="number" min="1" max={Math.min(100, settings.real_rtp_target_percent - 0.0001)} step="0.0001" value={settings.real_win_rate_target_percent} onChange={(event) => patchSettings({ real_pricing_model: 'custom', real_win_rate_target_percent: Number(event.target.value) || 0 })}/><span className="block text-xs font-normal text-muted-foreground">Used to calculate pricing only; actual win rate is determined by the market. Keep it below target RTP.</span></label>
+        <label className="space-y-2 text-sm font-medium">Target RTP (%)<Input type="number" min="0.00000001" step="any" value={settings.real_rtp_target_percent} onChange={(event) => patchSettings({ real_pricing_model: 'custom', real_rtp_target_percent: Number(event.target.value) || 0 })}/><span className="block text-xs font-normal text-muted-foreground">Sets the payout size for winning real trades.</span></label>
+        <div className="grid gap-4 sm:grid-cols-2 sm:col-span-2">{winRateFields.map(([key, label]) => <label key={key} className="space-y-2 text-sm font-medium">{label} (%)<Input type="number" min="0" max="100" step="0.01" value={settings[key]} onChange={(event) => patchSettings({ [key]: Number(event.target.value) || 0 })}/><span className="block text-xs font-normal text-muted-foreground">0% guarantees losses; 100% guarantees wins. Values between them set the win chance for each new trade.</span></label>)}</div>
       </div>
-      {!pricingIsValid && <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">Target RTP must be higher than the target win-rate assumption so a winning trade pays more than its stake.</p>}
+      {!pricingIsValid && <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">For real win rates between 1% and 99%, RTP must be higher than both real win rates so a winning payout exceeds the stake.</p>}
       <div className="grid gap-3 sm:grid-cols-3">
-        <Metric label="House edge (derived)" value={100 - settings.real_rtp_target_percent} suffix="%"/>
-        <Metric label="Expected player ROI (derived)" value={settings.real_rtp_target_percent - 100} suffix="%"/>
-        <Metric label="Payout on a 1 USDT win" value={impliedMultiplier} suffix="×"/>
+        <Metric label="RTP target" value={settings.real_rtp_target_percent} suffix="%"/>
+        <Metric label="Normal user real win payout" value={userRealMultiplier} suffix="x"/>
+        <Metric label="Agent real win payout" value={agentRealMultiplier} suffix="x"/>
       </div>
-      <p className="text-xs leading-5 text-muted-foreground">A win pays stake × RTP ÷ target win rate. The Standard preset is 95% RTP and 55.8824% target win rate, giving the current 1.70× payout. This target does not change market outcomes.</p>
+      <p className="text-xs leading-5 text-muted-foreground">Win-rate settings apply to each new demo or real trade. Market prices are still recorded, but the configured result rate determines whether a trade wins or loses. The RTP target sets payout size for real account wins.</p>
     </section>
 
     <section className="space-y-4 rounded-xl border border-border bg-card p-4">

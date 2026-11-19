@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from '@/integrations/supabase/types';
 import {
   robotStopReason,
+  payoutFor,
   round2,
   settleTrade,
   STARTING_BALANCE,
@@ -32,6 +33,7 @@ export type Trade = {
   duration: number;
   status: TradeStatus;
   byRobot?: boolean;
+  forcedWin?: boolean;
   real?: boolean;
 };
 
@@ -135,6 +137,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [synced, setSynced] = useState(false);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
+  const [isAgent, setIsAgent] = useState(false);
+  const isAgentRef = useRef(isAgent);
+  isAgentRef.current = isAgent;
   const [realBalance, setRealBalance] = useState(0);
   const [realTrades, setRealTrades] = useState<Trade[]>([]);
   const [realSettings, setRealSettings] = useState({ enabled: false, minStake: 1, maxStake: 0, reserveMaxStake: 0 });
@@ -199,6 +204,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const trade: Trade = {
       id: uid(12), symbol, direction, stake, entry: getPracticePrice(symbol), account: current.active,
       openedAt: now, expiresAt: now + duration * 1000, duration, status: 'active',
+      forcedWin: Math.random() * 100 < (isAgentRef.current ? settingsRef.current.agent_demo_win_rate_percent : settingsRef.current.user_demo_win_rate_percent),
       ...(byRobot ? { byRobot: true } : {}),
     };
     commit({
@@ -212,7 +218,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const { data, error } = await supabase.from('site_settings').select('trading_enabled,robot_enabled,deposits_enabled,withdrawals_enabled,real_trading_enabled,real_min_stake,real_max_stake,deposit_fee_percent,withdrawal_fee_percent,kes_per_usdt,real_rtp_target_percent,real_win_rate_target_percent,real_pricing_model,real_daily_loss_cap,real_weekly_loss_cap,real_monthly_loss_cap,real_market_exposure_cap,real_user_exposure_cap,fraud_detection_enabled,fraud_max_trades_per_minute,announcement').maybeSingle();
+      const { data, error } = await supabase.from('site_settings').select('trading_enabled,robot_enabled,deposits_enabled,withdrawals_enabled,real_trading_enabled,real_min_stake,real_max_stake,deposit_fee_percent,withdrawal_fee_percent,kes_per_usdt,real_rtp_target_percent,real_win_rate_target_percent,user_demo_win_rate_percent,user_real_win_rate_percent,agent_demo_win_rate_percent,agent_real_win_rate_percent,real_pricing_model,real_daily_loss_cap,real_weekly_loss_cap,real_monthly_loss_cap,real_market_exposure_cap,real_user_exposure_cap,fraud_detection_enabled,fraud_max_trades_per_minute,announcement').maybeSingle();
       if (active && !error) {
         const next = (data ?? DEFAULT_SETTINGS) as SiteSettings;
         settingsRef.current = next;
@@ -224,6 +230,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const timer = setInterval(load, 10000);
     return () => { active = false; clearInterval(timer); };
   }, [commit]);
+
+  useEffect(() => {
+    if (!user) { setIsAgent(false); return; }
+    let active = true;
+    const loadAgentStatus = async () => {
+      const { data } = await supabase.from('client_wallet_controls').select('agent_enabled').eq('user_id', user.id).maybeSingle();
+      if (active) setIsAgent(data?.agent_enabled ?? false);
+    };
+    void loadAgentStatus();
+    const timer = setInterval(() => { void loadAgentStatus(); }, 30000);
+    return () => { active = false; clearInterval(timer); };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user || !synced) { setRealBalance(0); setRealTrades([]); return; }
@@ -283,7 +301,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const trades = cur.trades.map((trade) => {
           if (trade.status !== 'active' || trade.expiresAt > now) return trade;
           const close = getPracticePrice(trade.symbol);
-          const result = settleTrade(trade.direction, trade.entry, close, trade.stake);
+          const marketResult = settleTrade(trade.direction, trade.entry, close, trade.stake);
+          const result = trade.forcedWin === undefined ? marketResult : trade.forcedWin ? { status: 'won' as const, payout: payoutFor(trade.stake) } : { status: 'lost' as const, payout: 0 };
           balances[trade.account] = round2(balances[trade.account] + result.payout);
           return { ...trade, close, payout: result.payout, status: result.status };
         });

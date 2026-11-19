@@ -71,20 +71,22 @@ async function marketQuote(db: ReturnType<typeof serviceDatabase>, symbol: strin
   return { price, bid: price - spec.spread / 2, ask: price + spec.spread / 2, timestamp, candleTs: timestamp, source };
 }
 
-async function realTradingSettings(db: ReturnType<typeof serviceDatabase>) {
-  const [settings, reserve] = await Promise.all([
-    db.from('site_settings').select('real_trading_enabled,real_min_stake,real_max_stake,real_rtp_target_percent,real_win_rate_target_percent').eq('id', true).maybeSingle(),
+async function realTradingSettings(db: ReturnType<typeof serviceDatabase>, userId: string) {
+  const [settings, reserve, controls] = await Promise.all([
+    db.from('site_settings').select('real_trading_enabled,real_min_stake,real_max_stake,real_rtp_target_percent,user_real_win_rate_percent,agent_real_win_rate_percent').eq('id', true).maybeSingle(),
     db.from('real_trading_reserves').select('available').eq('asset', 'USDT').maybeSingle(),
+    db.from('client_wallet_controls').select('agent_enabled').eq('user_id', userId).maybeSingle(),
   ]);
-  if (settings.error || reserve.error) throw new Error('Could not load real trading limits');
-  const payoutMultiplier = Number(settings.data?.real_rtp_target_percent ?? 95) / Number(settings.data?.real_win_rate_target_percent ?? 55.8824);
+  if (settings.error || reserve.error || controls.error) throw new Error('Could not load real trading limits');
+  const winRate = Number(controls.data?.agent_enabled ? settings.data?.agent_real_win_rate_percent : settings.data?.user_real_win_rate_percent) || 0;
+  const payoutMultiplier = winRate === 0 ? 1 : Math.max(1, Number(settings.data?.real_rtp_target_percent ?? 95) / winRate);
   const profitPerStake = payoutMultiplier - 1;
   const availableReserve = Number(reserve.data?.available ?? 0);
   return {
     enabled: settings.data?.real_trading_enabled ?? false,
     minStake: Number(settings.data?.real_min_stake ?? 1),
     maxStake: Number(settings.data?.real_max_stake ?? 0),
-    reserveMaxStake: profitPerStake > 0 ? availableReserve / profitPerStake : 0,
+    reserveMaxStake: profitPerStake > 0 ? availableReserve / profitPerStake : Number.MAX_SAFE_INTEGER,
   };
 }
 
@@ -122,7 +124,7 @@ export const getRealTradingData = createServerFn({ method: 'GET' }).middleware([
   const [wallet, trades, settings] = await Promise.all([
     context.supabase.from('funding_wallets').select('balance').eq('user_id', context.userId).eq('asset', 'USDT').maybeSingle(),
     context.supabase.from('real_trades').select('*').eq('user_id', context.userId).order('created_at', { ascending: false }).limit(100),
-    realTradingSettings(db),
+    realTradingSettings(db, context.userId),
   ]);
   if (wallet.error || trades.error) throw new Error('Could not load the real account');
   return { balance: Number(wallet.data?.balance ?? 0), trades: trades.data ?? [], settings };
@@ -172,7 +174,7 @@ export const settleDueRealTrades = createServerFn({ method: 'POST' }).middleware
   const [wallet, trades, settings] = await Promise.all([
     db.from('funding_wallets').select('balance').eq('user_id', context.userId).eq('asset', 'USDT').maybeSingle(),
     db.from('real_trades').select('*').eq('user_id', context.userId).order('created_at', { ascending: false }).limit(100),
-    realTradingSettings(db),
+    realTradingSettings(db, context.userId),
   ]);
   if (wallet.error || trades.error) throw new Error('Could not refresh real account');
   return { balance: Number(wallet.data?.balance ?? 0), trades: trades.data ?? [], settings, settlementErrors };

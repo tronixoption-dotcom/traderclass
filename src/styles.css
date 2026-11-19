@@ -89,15 +89,15 @@
   --card-foreground: #111827;
   --popover: #ffffff;
   --popover-foreground: #111827;
-  --primary: #2563eb;
+  --primary: #dc2626;
   --primary-foreground: #ffffff;
-  --primary-soft: #e3f1fe;
+  --primary-soft: #fee2e2;
   --secondary: #f3f4f6;
   --secondary-foreground: #111827;
   --muted: #f3f4f6;
   --muted-foreground: #6b7280;
-  --accent: #e3f1fe;
-  --accent-foreground: #111827;
+  --accent: #fee2e2;
+  --accent-foreground: #991b1b;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
   --destructive-soft: #fee2e2;
@@ -106,8 +106,8 @@
   --success-soft: #dcfce7;
   --sell: #dc2626;
   --sell-deep: #b91c1c;
-  --buy: #2563eb;
-  --buy-deep: #1d4ed8;
+  --buy: #16a34a;
+  --buy-deep: #15803d;
   --trade-foreground: #ffffff;
   --gold: #d9a514;
   --gold-foreground: #ffffff;
@@ -128,7 +128,7 @@
   --status-delay-fg: #b0185e;
   --border: #e5e7eb;
   --input: #e5e7eb;
-  --ring: #2563eb;
+  --ring: #dc2626;
   --nav: #ffffff;
   --nav-muted: #6b6b80;
   --chart-1: oklch(0.646 0.222 41.116);
@@ -138,12 +138,12 @@
   --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: oklch(0.984 0.003 247.858);
   --sidebar-foreground: oklch(0.21 0.02 265);
-  --sidebar-primary: oklch(0.546 0.215 262.9);
+  --sidebar-primary: oklch(0.62 0.22 25);
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.967 0.003 265);
   --sidebar-accent-foreground: oklch(0.21 0.02 265);
   --sidebar-border: oklch(0.9 0.005 265);
-  --sidebar-ring: oklch(0.546 0.215 262.9);
+  --sidebar-ring: oklch(0.62 0.22 25);
 }
 
 .dark {
@@ -156,14 +156,14 @@
   --card-foreground: oklch(0.96 0.005 265);
   --popover: oklch(0.23 0.018 265);
   --popover-foreground: oklch(0.96 0.005 265);
-  --primary: oklch(0.62 0.19 262);
+  --primary: oklch(0.67 0.2 25);
   --primary-foreground: oklch(1 0 0);
-  --primary-soft: oklch(0.3 0.06 262);
+  --primary-soft: oklch(0.3 0.08 25);
   --secondary: oklch(0.26 0.018 265);
   --secondary-foreground: oklch(0.96 0.005 265);
   --muted: oklch(0.26 0.018 265);
   --muted-foreground: oklch(0.7 0.02 265);
-  --accent: oklch(0.3 0.06 262);
+  --accent: oklch(0.3 0.08 25);
   --accent-foreground: oklch(0.96 0.005 265);
   --destructive: oklch(0.66 0.2 25);
   --destructive-foreground: oklch(1 0 0);
@@ -173,7 +173,7 @@
   --success-soft: oklch(0.3 0.07 155);
   --border: oklch(0.3 0.015 265);
   --input: oklch(0.34 0.015 265);
-  --ring: oklch(0.62 0.19 262);
+  --ring: oklch(0.67 0.2 25);
   --nav: oklch(0.19 0.016 265);
   --nav-muted: oklch(0.7 0.02 265);
   --tv-frame: oklch(0.12 0.01 265);
@@ -184,12 +184,12 @@
   --status-delay-fg: oklch(0.8 0.15 340);
   --sidebar: oklch(0.21 0.018 265);
   --sidebar-foreground: oklch(0.96 0.005 265);
-  --sidebar-primary: oklch(0.62 0.19 262);
+  --sidebar-primary: oklch(0.67 0.2 25);
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.26 0.018 265);
   --sidebar-accent-foreground: oklch(0.96 0.005 265);
   --sidebar-border: oklch(0.3 0.015 265);
-  --sidebar-ring: oklch(0.62 0.19 262);
+  --sidebar-ring: oklch(0.67 0.2 25);
 }
 
 @layer base {
@@ -247,35 +247,45 @@
 
 /* Reference-inspired admin theme stays isolated from the trading screens. */
 .admin-workspace {
-  --background: oklch(0.977 0.018 205);
+  --background: oklch(0.982 0.012 25);
   --foreground: oklch(0.23 0.055 250);
-  --card: oklch(0.992 0.011 205);
+  --card: oklch(0.995 0.006 25);
   --card-foreground: var(--foreground);
-  --nav: oklch(0.954 0.027 207);
-  --primary: oklch(0.67 0.145 233);
+  --nav: oklch(0.96 0.018 25);
+  --primary: oklch(0.62 0.2 25);
   --primary-foreground: oklch(1 0 0);
-  --primary-soft: oklch(0.891 0.067 218);
-  --muted: oklch(0.951 0.023 209);
+  --primary-soft: oklch(0.93 0.045 25);
+  --muted: oklch(0.96 0.014 25);
   --muted-foreground: oklch(0.46 0.06 236);
-  --border: oklch(0.892 0.04 216);
+  --border: oklch(0.9 0.025 25);
   --input: var(--border);
   --accent: var(--primary-soft);
   --accent-foreground: var(--primary);
   --secondary: var(--nav);
   --secondary-foreground: var(--foreground);
   --ring: var(--primary);
+  --success: #16a34a;
+  --success-foreground: #ffffff;
+  --success-soft: #dcfce7;
+  --buy: #16a34a;
+  --buy-deep: #15803d;
+  --sell: #dc2626;
+  --sell-deep: #b91c1c;
   --radius: 0.5rem;
 }
 .dark .admin-workspace {
-  --background: oklch(0.19 0.022 220);
+  --background: oklch(0.19 0.018 25);
   --foreground: oklch(0.96 0.01 210);
-  --card: oklch(0.23 0.026 220);
-  --nav: oklch(0.21 0.028 220);
-  --primary: oklch(0.77 0.12 220);
-  --primary-soft: oklch(0.33 0.06 220);
-  --muted: oklch(0.27 0.028 220);
-  --muted-foreground: oklch(0.76 0.04 218);
-  --border: oklch(0.36 0.035 220);
+  --card: oklch(0.23 0.022 25);
+  --nav: oklch(0.21 0.024 25);
+  --primary: oklch(0.7 0.19 25);
+  --primary-soft: oklch(0.33 0.08 25);
+  --muted: oklch(0.27 0.022 25);
+  --muted-foreground: oklch(0.76 0.025 25);
+  --border: oklch(0.36 0.03 25);
+  --success: oklch(0.72 0.17 150);
+  --success-foreground: oklch(0.15 0.02 150);
+  --success-soft: oklch(0.3 0.07 150);
 }
 .admin-stat {
   min-height: 124px;

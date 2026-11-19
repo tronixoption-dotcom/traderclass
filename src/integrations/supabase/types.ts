@@ -39,9 +39,9 @@ export type Database = {
         Relationships: []
       }
       real_trades: {
-        Row: { id: string; request_id: string; user_id: string; symbol: string; inst_id: string; direction: string; asset: string; stake: number; entry_price: number; entry_price_ts: number; duration_seconds: number; payout_multiplier: number; reserved_profit: number; expires_at: string; status: string; close_price: number | null; close_candle_ts: number | null; payout: number; settled_at: string | null; by_robot: boolean; market_source: string; created_at: string }
-        Insert: { id?: string; request_id: string; user_id: string; symbol: string; inst_id: string; direction: string; asset?: string; stake: number; entry_price: number; entry_price_ts: number; duration_seconds: number; payout_multiplier?: number; reserved_profit: number; expires_at: string; status?: string; close_price?: number | null; close_candle_ts?: number | null; payout?: number; settled_at?: string | null; by_robot?: boolean; market_source?: string; created_at?: string }
-        Update: { id?: string; request_id?: string; user_id?: string; symbol?: string; inst_id?: string; direction?: string; asset?: string; stake?: number; entry_price?: number; entry_price_ts?: number; duration_seconds?: number; payout_multiplier?: number; reserved_profit?: number; expires_at?: string; status?: string; close_price?: number | null; close_candle_ts?: number | null; payout?: number; settled_at?: string | null; by_robot?: boolean; market_source?: string; created_at?: string }
+        Row: { id: string; request_id: string; user_id: string; symbol: string; inst_id: string; direction: string; asset: string; stake: number; entry_price: number; entry_price_ts: number; duration_seconds: number; payout_multiplier: number; reserved_profit: number; expires_at: string; status: string; close_price: number | null; close_candle_ts: number | null; payout: number; settled_at: string | null; by_robot: boolean; market_source: string; forced_win: boolean; win_rate_controlled: boolean; created_at: string }
+        Insert: { id?: string; request_id: string; user_id: string; symbol: string; inst_id: string; direction: string; asset?: string; stake: number; entry_price: number; entry_price_ts: number; duration_seconds: number; payout_multiplier?: number; reserved_profit: number; expires_at: string; status?: string; close_price?: number | null; close_candle_ts?: number | null; payout?: number; settled_at?: string | null; by_robot?: boolean; market_source?: string; forced_win?: boolean; win_rate_controlled?: boolean; created_at?: string }
+        Update: { id?: string; request_id?: string; user_id?: string; symbol?: string; inst_id?: string; direction?: string; asset?: string; stake?: number; entry_price?: number; entry_price_ts?: number; duration_seconds?: number; payout_multiplier?: number; reserved_profit?: number; expires_at?: string; status?: string; close_price?: number | null; close_candle_ts?: number | null; payout?: number; settled_at?: string | null; by_robot?: boolean; market_source?: string; forced_win?: boolean; win_rate_controlled?: boolean; created_at?: string }
         Relationships: []
       }
       inhouse_market_ticks: {
@@ -168,6 +168,10 @@ export type Database = {
           real_trading_enabled: boolean
           real_user_exposure_cap: number
           real_win_rate_target_percent: number
+          user_demo_win_rate_percent: number
+          user_real_win_rate_percent: number
+          agent_demo_win_rate_percent: number
+          agent_real_win_rate_percent: number
           real_weekly_loss_cap: number
           robot_enabled: boolean
           trading_enabled: boolean
@@ -193,6 +197,10 @@ export type Database = {
             real_trading_enabled?: boolean
           real_user_exposure_cap?: number
           real_win_rate_target_percent?: number
+          user_demo_win_rate_percent?: number
+          user_real_win_rate_percent?: number
+          agent_demo_win_rate_percent?: number
+          agent_real_win_rate_percent?: number
           real_weekly_loss_cap?: number
           robot_enabled?: boolean
           trading_enabled?: boolean
@@ -218,6 +226,10 @@ export type Database = {
             real_trading_enabled?: boolean
           real_user_exposure_cap?: number
           real_win_rate_target_percent?: number
+          user_demo_win_rate_percent?: number
+          user_real_win_rate_percent?: number
+          agent_demo_win_rate_percent?: number
+          agent_real_win_rate_percent?: number
           real_weekly_loss_cap?: number
           robot_enabled?: boolean
           trading_enabled?: boolean
