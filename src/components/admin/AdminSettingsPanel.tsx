@@ -27,6 +27,7 @@ export function AdminSettingsPanel({ settings, setSettings, audit, busy, onSave,
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="space-y-2 text-sm font-medium">Deposit fee (%)<Input type="number" min="0" max="99.99" step="0.01" value={settings.deposit_fee_percent} onChange={(event) => patchSettings({ deposit_fee_percent: Number(event.target.value) || 0 })}/></label>
         <label className="space-y-2 text-sm font-medium">Withdrawal fee (%)<Input type="number" min="0" max="99.99" step="0.01" value={settings.withdrawal_fee_percent} onChange={(event) => patchSettings({ withdrawal_fee_percent: Number(event.target.value) || 0 })}/></label>
+        <label className="space-y-2 text-sm font-medium">M-Pesa conversion rate (KES per 1 USDT)<Input type="number" min="1" max="10000" step="0.01" value={settings.kes_per_usdt} onChange={(event) => patchSettings({ kes_per_usdt: Math.min(10000, Math.max(1, Number(event.target.value) || 1)) })}/><span className="block text-xs font-normal text-muted-foreground">Used for new M-Pesa deposits and USDT withdrawals to M-Pesa. The rate is saved with each transaction.</span></label>
       </div>
     </section>
 

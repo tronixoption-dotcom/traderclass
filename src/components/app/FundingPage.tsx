@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ArrowRight, Check, ChevronLeft, ChevronRight, Clock3, Copy, WalletCards } from 'lucide-react';
 import { toast } from 'sonner';
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/app/PageHeader';
 import { loadFunding, requestFundingDeposit, requestFundingWithdrawal } from '@/lib/funding.functions';
-import { loadMpesaWallet, initiateMpesaDeposit, requestMpesaWithdrawal } from '@/lib/mpesa.functions';
+import { loadMpesaWallet, initiateMpesaDeposit, requestMpesaWithdrawal, requestUsdtMpesaWithdrawal } from '@/lib/mpesa.functions';
 import { useStore } from '@/lib/store';
 
 type FundingData = Awaited<ReturnType<typeof loadFunding>>;
@@ -24,6 +24,7 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
   const [reference, setReference] = useState('');
   const [busy, setBusy] = useState(false);
   const [choosingMethod, setChoosingMethod] = useState(false);
+  const initializedWithdrawAmount = useRef(false);
   const usdtBalance = Number(data?.wallets.find((wallet) => wallet.asset === 'USDT')?.balance ?? 0);
 
   const refresh = useCallback(async () => {
@@ -33,14 +34,9 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
   }, [user]);
   useEffect(() => { void refresh().catch(() => toast.error('Could not load wallet details')); }, [refresh]);
   useEffect(() => {
-    if (mode !== 'withdraw' || !data || !mpesa || usdtBalance <= 0) return;
-    const current = data.methods.find((method) => method.id === methodId);
-    if (current?.asset === 'USDT' || (methodId !== 'mpesa' && current)) return;
-    const usdtMethod = data.methods.find((method) => method.asset === 'USDT' && method.withdrawals_enabled);
-    if (usdtMethod) {
-      setMethodId(usdtMethod.id);
-      setAmount(String(Math.min(50, usdtBalance)));
-    }
+    if (mode !== 'withdraw' || !data || !mpesa || initializedWithdrawAmount.current) return;
+    initializedWithdrawAmount.current = true;
+    if (usdtBalance > 0 && methodId === 'mpesa') setAmount(String(Math.min(50, usdtBalance)));
   }, [mode, data, mpesa, methodId, usdtBalance]);
   useEffect(() => {
     const pending = data?.transactions.some((tx) => tx.status === 'under_review' || tx.status === 'processing') || mpesa?.transactions.some((tx) => tx.status === 'pending' || tx.status === 'processing');
@@ -53,7 +49,7 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
   const accountFundingEnabled = mode === 'deposit' ? data?.accountControls.depositsEnabled !== false : data?.accountControls.withdrawalsEnabled !== false;
   const availableMethods = allMethods.filter((method) => accountFundingEnabled && (mode === 'deposit' ? method.deposits_enabled : method.withdrawals_enabled));
   const selected = useMemo(() => availableMethods.find((method) => method.id === methodId) ?? null, [availableMethods, methodId]);
-  const currency = selected?.asset ?? 'KES';
+  const currency = selected?.asset ?? (mode === 'withdraw' && methodId === 'mpesa' && usdtBalance > 0 ? 'USDT' : 'KES');
   const walletBalance = (asset: string) => asset === 'KES'
     ? Number(mpesa?.balanceKes ?? 0)
     : Number(data?.wallets.find((wallet) => wallet.asset === asset)?.balance ?? 0);
@@ -61,6 +57,7 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
   const feePercent = mode === 'deposit' ? data?.depositFeePercent ?? 0 : data?.withdrawalFeePercent ?? 0;
   const feeAmount = Number.isFinite(amountNumber) && amountNumber > 0 ? amountNumber * feePercent / 100 : 0;
   const netAmount = Math.max(0, amountNumber - feeAmount);
+  const kesPerUsdt = data?.kesPerUsdt ?? 130.05;
   const presets = currency === 'KES' ? [500, 1_000, 2_500, 5_000, 10_000, 25_000] : PRESETS;
 
   const submit = async () => {
@@ -72,7 +69,9 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
       if (methodId === 'mpesa') {
         const result = mode === 'deposit'
           ? await initiateMpesaDeposit({ data: { amountKes: value, phone: contact } })
-          : await requestMpesaWithdrawal({ data: { amountKes: value, phone: contact } });
+          : currency === 'USDT'
+            ? await requestUsdtMpesaWithdrawal({ data: { amountUsdt: value, phone: contact } })
+            : await requestMpesaWithdrawal({ data: { amountKes: value, phone: contact } });
         toast.success(result.message);
       } else if (selected) {
         if (mode === 'deposit') {
@@ -115,6 +114,9 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
   const selectable = [mpesaChoice, ...exchangeChoices, ...extraMethods];
   const current = selectable.find((method) => method.id === methodId) ?? mpesaChoice;
   const configured = methodId === 'mpesa' || !!selected;
+  const minimumAmount = methodId === 'mpesa' && mode === 'withdraw' && currency === 'USDT' ? 0.00000001 : current?.min_amount ?? 1;
+  const methodMaximum = methodId === 'mpesa' && mode === 'withdraw' && currency === 'USDT' ? 150000 / kesPerUsdt : current?.max_amount ?? 150000;
+  const maximumAmount = Math.min(methodMaximum, mode === 'withdraw' ? walletBalance(currency) : 1_000_000);
 
   if (choosingMethod) return <div className="pb-6">
     <header className="sticky top-0 z-10 flex h-[49px] items-center bg-background px-2">
@@ -125,7 +127,7 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
       <p className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Recommended &amp; crypto ✨</p>
       <div className="space-y-3">{selectable.map((method) => <button key={method.id} type="button" onClick={() => {
         if (!method.enabled) { toast.info(`${method.name} will be available after an admin configures its wallet and enables it.`); return; }
-        setMethodId(method.id); setAmount(method.asset === 'KES' ? (mode === 'deposit' ? '1000' : '500') : '50'); setContact(''); setChoosingMethod(false);
+        setMethodId(method.id); setAmount(method.id === 'mpesa' && mode === 'withdraw' && usdtBalance > 0 ? String(Math.min(50, usdtBalance)) : method.asset === 'KES' ? (mode === 'deposit' ? '1000' : '500') : '50'); setContact(''); setChoosingMethod(false);
       }} className={`flex min-h-[78px] w-full items-center gap-4 rounded-full border border-border bg-card px-5 text-left transition ${method.enabled ? 'hover:border-primary hover:bg-primary/5' : 'opacity-60'}`}>
         <PlatformMark name={method.name}/><span className="min-w-0 flex-1"><span className="block text-base font-semibold">{method.name}</span><span className="mt-1 block text-xs text-muted-foreground">{method.enabled ? `${method.asset}${method.network ? ` · ${method.network}` : ''}` : 'Admin setup required'}</span></span>{method.enabled ? <ChevronRight className="size-5 text-muted-foreground"/> : <span className="text-[10px] text-muted-foreground">Unavailable</span>}
       </button>)}</div>
@@ -137,15 +139,23 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
     <div><h2 className="text-lg font-bold">{mode === 'deposit' ? 'Deposit amount' : 'Withdrawal amount'}</h2><p className="mt-1 text-sm text-muted-foreground">{accountFundingEnabled ? 'Choose an amount and payment method.' : `Your account’s ${mode} option has been disabled by an administrator.`}</p></div>
     {mode === 'withdraw' && <div className="rounded-xl bg-muted/50 p-3 text-sm"><span className="text-muted-foreground">Available {currency} balance</span><span className="float-right font-bold">{money(walletBalance(currency), currency)}</span><span className="mt-2 block text-xs text-muted-foreground">USDT trading balance: <b className="text-foreground">{money(usdtBalance, 'USDT')}</b>{mpesa.balanceKes > 0 && <> · M-Pesa balance: <b className="text-foreground">{money(mpesa.balanceKes, 'KES')}</b></>}</span></div>}
     {selected && mode === 'deposit' && <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4"><p className="text-sm font-semibold">Send {selected.asset} using {selected.name}{selected.network ? ` · ${selected.network}` : ''}</p><p className="text-xs leading-5 text-muted-foreground">{selected.instructions || 'Send only the selected asset on the network shown.'}</p><div className="break-all rounded-lg border border-border bg-background p-3 font-mono text-sm">{selected.deposit_address}</div><Button variant="outline" size="sm" onClick={() => { void navigator.clipboard.writeText(selected.deposit_address); toast.success('Wallet address copied'); }}><Copy className="mr-2 size-4"/>Copy address</Button><p className="text-xs text-muted-foreground">After sending, enter the transaction hash below. Admin review is required before funds are credited.</p></div>}
-    {methodId === 'mpesa' && <div className="rounded-xl bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">KES deposits and withdrawals use M-Pesa. The payment prompt or payout is confirmed through Safaricom.</div>}
-    <label className="block text-sm font-semibold">Amount ({currency})<span className="mt-2 flex h-14 items-center rounded-xl border-2 border-primary bg-background px-4"><span className="mr-2 font-bold text-muted-foreground">{currency === 'KES' ? 'KES' : currency}</span><Input aria-label={`Amount in ${currency}`} className="h-full border-0 px-0 text-lg font-bold shadow-none focus-visible:ring-0" type="number" min={current?.min_amount ?? 1} max={Math.min(current?.max_amount ?? 150000, mode === 'withdraw' ? walletBalance(currency) : 1_000_000)} step={currency === 'KES' ? 1 : 'any'} value={amount} onChange={(event) => setAmount(event.target.value)}/></span></label>
-    {amountNumber > 0 && <p className="-mt-3 text-xs leading-5 text-muted-foreground">Fee {feePercent}% ({money(feeAmount,currency)}) · {mode==='deposit'?'Estimated wallet credit':'Estimated payout'}: <span className="font-semibold text-foreground">{money(netAmount,currency)}</span></p>}
+    {methodId === 'mpesa' && <div className="rounded-xl bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">{mode === 'deposit'
+      ? `M-Pesa deposits convert to your trading wallet automatically at 1 USDT = ${kesPerUsdt.toFixed(2)} KES, after the deposit fee.`
+      : currency === 'USDT'
+        ? `Your USDT is converted automatically at 1 USDT = ${kesPerUsdt.toFixed(2)} KES and paid to this M-Pesa number after the withdrawal fee.`
+        : 'Your existing KES balance is paid to this M-Pesa number.'} The payment or payout is confirmed through Safaricom.</div>}
+    <label className="block text-sm font-semibold">Amount ({currency})<span className="mt-2 flex h-14 items-center rounded-xl border-2 border-primary bg-background px-4"><span className="mr-2 font-bold text-muted-foreground">{currency === 'KES' ? 'KES' : currency}</span><Input aria-label={`Amount in ${currency}`} className="h-full border-0 px-0 text-lg font-bold shadow-none focus-visible:ring-0" type="number" min={minimumAmount} max={maximumAmount} step={currency === 'KES' ? 1 : 'any'} value={amount} onChange={(event) => setAmount(event.target.value)}/></span></label>
+    {amountNumber > 0 && <p className="-mt-3 text-xs leading-5 text-muted-foreground">{mode === 'deposit' && currency === 'KES'
+      ? <>Fee {feePercent}% ({money(feeAmount, 'KES')}) · Estimated USDT wallet credit: <span className="font-semibold text-foreground">{money(netAmount / kesPerUsdt, 'USDT')}</span></>
+      : mode === 'withdraw' && currency === 'USDT'
+        ? <>Fee {feePercent}% · Estimated M-Pesa payout: <span className="font-semibold text-foreground">{money(Math.max(0, Math.round(amountNumber * kesPerUsdt) - Math.round(Math.round(amountNumber * kesPerUsdt) * feePercent / 100)), 'KES')}</span></>
+        : <>Fee {feePercent}% ({money(feeAmount,currency)}) · {mode==='deposit'?'Estimated wallet credit':'Estimated payout'}: <span className="font-semibold text-foreground">{money(netAmount,currency)}</span></>}</p>}
     <div className="flex flex-wrap gap-2">{presets.filter((preset) => mode === 'deposit' || preset <= walletBalance(currency)).map((preset) => <button key={preset} type="button" onClick={() => setAmount(String(preset))} className={`rounded-lg border px-3 py-2 text-sm ${amountNumber===preset?'border-2 border-primary bg-primary/10':'border-border hover:bg-muted'}`}>{money(preset,currency)}</button>)}</div>
-    <div><p className="mb-2 text-sm font-medium">Payment method</p><button type="button" onClick={() => setChoosingMethod(true)} className="flex h-[68px] w-full items-center gap-3 rounded-[13px] border border-input bg-background px-4 text-left hover:bg-muted/50"><PlatformMark name={current.name}/><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{current.name}</span><span className="mt-1 block text-xs text-muted-foreground">{current.asset}{current.network ? ` · ${current.network}` : ''}</span></span><ChevronRight className="size-5 text-muted-foreground"/></button></div>
+    <div><p className="mb-2 text-sm font-medium">Payment method</p><button type="button" onClick={() => setChoosingMethod(true)} className="flex h-[68px] w-full items-center gap-3 rounded-[13px] border border-input bg-background px-4 text-left hover:bg-muted/50"><PlatformMark name={current.name}/><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{current.name}</span><span className="mt-1 block text-xs text-muted-foreground">{methodId === 'mpesa' && mode === 'withdraw' && currency === 'USDT' ? 'USDT wallet → KES payout' : `${current.asset}${current.network ? ` · ${current.network}` : ''}`}</span></span><ChevronRight className="size-5 text-muted-foreground"/></button></div>
     {methodId === 'mpesa' ? <label className="block text-sm font-semibold">{mode === 'deposit' ? 'M-Pesa phone number' : 'M-Pesa phone number'}<Input className="mt-2 h-12" inputMode="tel" autoComplete="tel" placeholder="07XXXXXXXX" value={contact} onChange={(event)=>setContact(event.target.value)}/></label> : mode === 'deposit' ? <label className="block text-sm font-semibold">Transaction hash / payment reference<Input className="mt-2 h-12 font-mono" placeholder="Paste transaction ID" value={reference} onChange={(event)=>setReference(event.target.value)}/></label> : <label className="block text-sm font-semibold">Your {currency} wallet address<Input className="mt-2 h-12 font-mono" placeholder="Enter your receiving wallet" value={contact} onChange={(event)=>setContact(event.target.value)}/></label>}
     <Button className="h-14 w-full rounded-full text-base font-bold" disabled={busy||!configured||!amount||!accountFundingEnabled} onClick={()=>void submit()}>{busy?'Please wait…':mode==='deposit'?'Deposit':'Withdraw'}<ArrowRight className="ml-2 size-5"/></Button>
     <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground"><Clock3 className="size-3.5"/>{mode==='deposit'&&methodId!=='mpesa'?'Crypto deposits are credited after an admin confirms the transaction on-chain.':mode==='withdraw'&&methodId!=='mpesa'?'The selected amount is reserved while an admin processes the payout.':'Your balance updates when the M-Pesa transaction is confirmed.'}</p>
-    <p className="text-center text-[11px] leading-5 text-muted-foreground">Approved USDT deposits and live trading returns are held in your USDT wallet. Select a USDT withdrawal method to withdraw those funds.</p>
+    <p className="text-center text-[11px] leading-5 text-muted-foreground">M-Pesa deposits are converted into your USDT trading balance automatically. You can withdraw that USDT to M-Pesa or use an enabled crypto withdrawal method.</p>
   </section></div>;
 }
 

@@ -154,6 +154,7 @@ export type Database = {
           fraud_detection_enabled: boolean
           fraud_max_trades_per_minute: number
           id: boolean
+          kes_per_usdt: number
           real_daily_loss_cap: number
           real_market_exposure_cap: number
           real_max_stake: number
@@ -178,6 +179,7 @@ export type Database = {
           fraud_detection_enabled?: boolean
           fraud_max_trades_per_minute?: number
           id?: boolean
+          kes_per_usdt?: number
           real_daily_loss_cap?: number
           real_market_exposure_cap?: number
             real_max_stake?: number
@@ -202,6 +204,7 @@ export type Database = {
           fraud_detection_enabled?: boolean
           fraud_max_trades_per_minute?: number
           id?: boolean
+          kes_per_usdt?: number
           real_daily_loss_cap?: number
           real_market_exposure_cap?: number
             real_max_stake?: number
