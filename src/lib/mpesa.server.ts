@@ -231,7 +231,11 @@ export async function getWallet(userId: string) {
     db.from('mpesa_transactions').select('id,kind,status,amount_kes,fee_amount_kes,net_amount_kes,phone_number,mpesa_receipt_number,conversion_rate,converted_usdt,source_asset,source_amount_usdt,created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
     db.from('mpesa_transactions').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('kind', 'deposit').eq('status', 'completed'),
   ]);
-  if (wallet.error || transactions.error || deposits.error) throw new Error('Could not load the M-Pesa wallet');
+  if (wallet.error || transactions.error || deposits.error) {
+    const error = wallet.error ?? transactions.error ?? deposits.error;
+    console.error('Could not load M-Pesa wallet data', error);
+    throw new Error(`Could not load the M-Pesa wallet: ${error.message}`);
+  }
   return { balanceKes: wallet.data?.balance_kes ?? 0, isActivated: (deposits.count ?? 0) > 0, transactions: transactions.data ?? [] };
 }
 

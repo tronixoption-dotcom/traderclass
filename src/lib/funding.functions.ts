@@ -13,16 +13,25 @@ const methodInput = z.object({
 const configuredMethodInput = methodInput.refine((value) => value.asset === 'USDT' && value.min_amount >= 10, 'Crypto deposits must use USDT with a minimum of 10 USDT').refine((value) => !value.deposits_enabled || !value.deposit_address.toUpperCase().startsWith('UNCONFIGURED-'), 'Set the real receiving wallet address before enabling deposits');
 
 export const loadFunding = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
-  const [methods, wallets, transactions, deposits, settings, controls] = await Promise.all([
+  const [methods, wallets, transactions, deposits, settings, minimums, controls] = await Promise.all([
     context.supabase.from('funding_methods').select('*').order('sort_order'),
     context.supabase.from('funding_wallets').select('asset,balance').eq('user_id', context.userId),
     context.supabase.from('funding_transactions').select('*').eq('user_id', context.userId).order('created_at', { ascending: false }).limit(50),
     context.supabase.from('funding_transactions').select('id', { count: 'exact', head: true }).eq('user_id', context.userId).eq('kind', 'deposit').eq('status', 'completed'),
-    context.supabase.from('site_settings').select('deposit_fee_percent,withdrawal_fee_percent,minimum_deposit_usdt,minimum_withdrawal_usdt,kes_per_usdt').eq('id', true).maybeSingle(),
+    context.supabase.from('site_settings').select('deposit_fee_percent,withdrawal_fee_percent,kes_per_usdt').eq('id', true).maybeSingle(),
+    context.supabase.from('site_settings').select('minimum_deposit_usdt,minimum_withdrawal_usdt').eq('id', true).maybeSingle(),
     context.supabase.from('client_wallet_controls').select('deposits_enabled,withdrawals_enabled').eq('user_id', context.userId).maybeSingle(),
   ]);
-  if (methods.error || wallets.error || transactions.error || deposits.error || settings.error || controls.error) throw new Error('Could not load funding options');
-  return { methods: methods.data ?? [], wallets: wallets.data ?? [], transactions: transactions.data ?? [], isActivated: (deposits.count ?? 0)>0, depositFeePercent: Number(settings.data?.deposit_fee_percent ?? 0), withdrawalFeePercent: Number(settings.data?.withdrawal_fee_percent ?? 0), minimumDepositUsdt: Number(settings.data?.minimum_deposit_usdt ?? 10), minimumWithdrawalUsdt: Number(settings.data?.minimum_withdrawal_usdt ?? 1), kesPerUsdt: Number(settings.data?.kes_per_usdt ?? 130.05), accountControls: { depositsEnabled: controls.data?.deposits_enabled ?? true, withdrawalsEnabled: controls.data?.withdrawals_enabled ?? true } };
+  const missingMinimumColumns = minimums.error && (
+    minimums.error.code === '42703' || minimums.error.code === 'PGRST204' ||
+    minimums.error.message.includes('minimum_deposit_usdt') || minimums.error.message.includes('minimum_withdrawal_usdt')
+  );
+  if (methods.error || wallets.error || transactions.error || deposits.error || settings.error || (minimums.error && !missingMinimumColumns) || controls.error) {
+    const error = methods.error ?? wallets.error ?? transactions.error ?? deposits.error ?? settings.error ?? (missingMinimumColumns ? null : minimums.error) ?? controls.error;
+    console.error('Could not load customer funding data', error);
+    throw new Error(`Could not load funding options${error && 'message' in error ? `: ${error.message}` : ''}`);
+  }
+  return { methods: methods.data ?? [], wallets: wallets.data ?? [], transactions: transactions.data ?? [], isActivated: (deposits.count ?? 0)>0, depositFeePercent: Number(settings.data?.deposit_fee_percent ?? 0), withdrawalFeePercent: Number(settings.data?.withdrawal_fee_percent ?? 0), minimumDepositUsdt: Number(minimums.data?.minimum_deposit_usdt ?? 10), minimumWithdrawalUsdt: Number(minimums.data?.minimum_withdrawal_usdt ?? 1), kesPerUsdt: Number(settings.data?.kes_per_usdt ?? 130.05), accountControls: { depositsEnabled: controls.data?.deposits_enabled ?? true, withdrawalsEnabled: controls.data?.withdrawals_enabled ?? true } };
 });
 
 const cryptoAmount = z.number().positive().max(1_000_000).refine((amount) => Number.isInteger(amount * 100_000_000), 'Amount supports up to 8 decimal places');

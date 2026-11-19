@@ -32,7 +32,7 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
     const [funding, mpesaWallet] = await Promise.all([loadFunding(), loadMpesaWallet()]);
     setData(funding); setMpesa(mpesaWallet);
   }, [user]);
-  useEffect(() => { void refresh().catch(() => toast.error('Could not load wallet details')); }, [refresh]);
+  useEffect(() => { void refresh().catch((error) => toast.error(error instanceof Error ? error.message : 'Could not load wallet details')); }, [refresh]);
   useEffect(() => {
     if (mode !== 'withdraw' || !data || !mpesa || initializedWithdrawAmount.current) return;
     initializedWithdrawAmount.current = true;
