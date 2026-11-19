@@ -41,15 +41,16 @@ export const requestFundingWithdrawal = createServerFn({ method: 'POST' }).middl
 export const getFundingAdmin = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const roles = await requireStaff(context.supabase, context.userId, context.claims);
   if (!roles.includes('admin') && !roles.includes('agent')) throw new Error('Funding access required');
-  const [methods, transactions, profiles] = await Promise.all([
+  const [methods, transactions, mpesaTransactions, profiles] = await Promise.all([
     context.supabase.from('funding_methods').select('*').order('sort_order'),
     context.supabase.from('funding_transactions').select('*').in('status', ['under_review','processing']).order('created_at'),
+    context.supabase.from('mpesa_transactions').select('*').order('created_at', { ascending: false }).limit(200),
     context.supabase.from('profiles').select('id,username'),
   ]);
-  if (methods.error || transactions.error || profiles.error) throw new Error('Could not load funding administration');
+  if (methods.error || transactions.error || mpesaTransactions.error || profiles.error) throw new Error('Could not load funding administration');
   const { data: controls, error: controlsError } = roles.includes('admin') ? await context.supabase.from('client_wallet_controls').select('*') : { data: [], error: null };
   if (controlsError) throw new Error('Could not load funding administration');
-  return { methods: methods.data ?? [], transactions: transactions.data ?? [], profiles: profiles.data ?? [], controls: controls ?? [] };
+  return { methods: methods.data ?? [], transactions: transactions.data ?? [], mpesaTransactions: mpesaTransactions.data ?? [], profiles: profiles.data ?? [], controls: controls ?? [] };
 });
 
 export const saveFundingMethod = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((value: unknown) => configuredMethodInput.parse(value)).handler(async ({ data, context }) => {
