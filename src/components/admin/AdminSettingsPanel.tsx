@@ -31,7 +31,7 @@ export function AdminSettingsPanel({ settings, setSettings, audit, busy, onSave,
     </section>
 
     <section className="space-y-4 rounded-xl border border-border bg-card p-4">
-      <div><h2 className="text-lg font-semibold">Core economics</h2><p className="mt-1 text-sm text-muted-foreground">These settings price wins for new trades. The in-house market engine decides whether each trade wins, loses, or draws.</p></div>
+      <div><h2 className="text-lg font-semibold">Core economics</h2><p className="mt-1 text-sm text-muted-foreground">These settings price payouts for new live contracts. Contract results follow the selected OKX market price at expiry.</p></div>
       <label className="block max-w-sm space-y-2 text-sm font-medium">Pricing model preset<Select value={settings.real_pricing_model} onValueChange={(value) => {
         if (value === 'standard') patchSettings({ real_pricing_model: 'standard', real_rtp_target_percent: 95, real_win_rate_target_percent: 55.8824 });
         else if (value === 'conservative') patchSettings({ real_pricing_model: 'conservative', real_rtp_target_percent: 90, real_win_rate_target_percent: 55.8824 });
@@ -66,15 +66,15 @@ export function AdminSettingsPanel({ settings, setSettings, audit, busy, onSave,
     <section className="space-y-4 rounded-xl border border-border bg-card p-4">
       <div><h2 className="text-lg font-semibold">Fraud and rate protection</h2><p className="mt-1 text-sm text-muted-foreground">An automated order-rate rule blocks repeated rapid trade submissions per account.</p></div>
       <label className="flex items-center justify-between gap-4 text-sm font-medium">Enable automated trade-rate protection<Switch aria-label="Enable automated trade-rate protection" checked={settings.fraud_detection_enabled} onCheckedChange={(checked) => patchSettings({ fraud_detection_enabled: checked })}/></label>
-      <label className="block max-w-sm space-y-2 text-sm font-medium">Maximum trades per account per minute<Input type="number" min="1" step="1" value={settings.fraud_max_trades_per_minute} onChange={(event) => patchSettings({ fraud_max_trades_per_minute: Math.max(1, Math.floor(Number(event.target.value) || 1)) })}/></label>
+      <label className="block max-w-sm space-y-2 text-sm font-medium">Maximum trades per account per minute<Input type="number" min="1" max="32767" step="1" value={settings.fraud_max_trades_per_minute} onChange={(event) => patchSettings({ fraud_max_trades_per_minute: Math.min(32767, Math.max(1, Math.floor(Number(event.target.value) || 1))) })}/></label>
     </section>
 
     <section className="space-y-3 rounded-xl border border-border bg-card p-4">
-      <div><h2 className="text-lg font-semibold">Market and site controls</h2><p className="mt-1 text-sm text-muted-foreground">Trades use the in-house price engine and the configured payout rules.</p></div>
+      <div><h2 className="text-lg font-semibold">Market and site controls</h2><p className="mt-1 text-sm text-muted-foreground">Live contracts use fresh OKX prices and the configured payout rules.</p></div>
       <div className="divide-y divide-border border-y border-border">{([
         { key: 'trading_enabled', label: 'Manual trading' }, { key: 'robot_enabled', label: 'Automated robot' },
         { key: 'deposits_enabled', label: 'All deposits' }, { key: 'withdrawals_enabled', label: 'All withdrawals' },
-        { key: 'real_trading_enabled', label: 'Live USDT contracts (in-house prices)' },
+        { key: 'real_trading_enabled', label: 'Live USDT contracts (OKX prices)' },
       ] as const).map((item) => <label key={item.key} className="flex items-center justify-between py-4 text-sm font-medium">{item.label}<Switch aria-label={item.label} checked={settings[item.key]} onCheckedChange={(checked) => patchSettings({ [item.key]: checked })}/></label>)}</div>
       <label className="block space-y-2 text-sm font-medium">Site announcement<Textarea aria-label="Site announcement" maxLength={240} value={settings.announcement} onChange={(event) => patchSettings({ announcement: event.target.value })}/></label>
     </section>

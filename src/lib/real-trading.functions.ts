@@ -15,7 +15,7 @@ function serviceDatabase() {
 
 const tradeInput = z.object({
   requestId: z.string().uuid(), symbol: z.string().max(16), direction: z.enum(['buy', 'sell']),
-  stake: z.number().positive(), duration: z.number().int(), byRobot: z.boolean().optional().default(false), marketSource: z.enum(['okx', 'inhouse']).default('okx'),
+  stake: z.number().positive(), duration: z.number().int(), byRobot: z.boolean().optional().default(false), marketSource: z.literal('okx').default('okx'),
 });
 
 function marketSpec(symbol: string) {

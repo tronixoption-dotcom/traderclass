@@ -54,7 +54,7 @@ export function InstrumentPicker({ symbol, onChange, disabled = false, robot = f
               </CommandGroup> : null;
             })}
           </CommandList>
-          <div className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground">{instruments.length} markets · In-house prices</div>
+          <div className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground">{instruments.length} markets · Live market prices</div>
         </Command>
       </PopoverContent>
     </Popover>

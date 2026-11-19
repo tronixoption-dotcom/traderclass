@@ -20,7 +20,7 @@ function MarketPreview() {
           <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-semibold text-emerald-300">LIVE MARKETS</span>
         </div>
         <div className="mt-5 flex items-end justify-between gap-4">
-          <div><div className="font-mono text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Live quote</div><div className="mt-1 flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-300"><ArrowUpRight className="size-4" /> In-house market price</div></div>
+          <div><div className="font-mono text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Live quote</div><div className="mt-1 flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-300"><ArrowUpRight className="size-4" /> OKX market price</div></div>
           <div className="hidden gap-1 rounded-lg bg-white/5 p-1 text-[11px] text-slate-400 sm:flex">{["1m", "5m", "15m", "1h"].map((t, i) => <span key={t} className={`rounded-md px-2 py-1 ${i === 1 ? "bg-[#eab84e] font-bold text-[#101a2a]" : ""}`}>{t}</span>)}</div>
         </div>
         <div className="mt-5 h-[190px] overflow-hidden rounded-xl bg-muted p-2 sm:h-[230px]">
@@ -34,7 +34,7 @@ function MarketPreview() {
           </svg>
         </div>
         <div className="mt-4 grid grid-cols-3 gap-2">
-          {[{ label: "Markets", value: "In-house markets" }, { label: "Account", value: "Live USDT" }, { label: "Funding", value: "Crypto · M-Pesa" }].map((item) => <div key={item.label} className="rounded-xl bg-muted px-3 py-2.5"><div className="text-[10px] uppercase tracking-[.14em] text-muted-foreground">{item.label}</div><div className="mt-1 text-xs font-semibold text-foreground">{item.value}</div></div>)}
+          {[{ label: "Markets", value: "OKX crypto" }, { label: "Account", value: "Live USDT" }, { label: "Funding", value: "Crypto · M-Pesa" }].map((item) => <div key={item.label} className="rounded-xl bg-muted px-3 py-2.5"><div className="text-[10px] uppercase tracking-[.14em] text-muted-foreground">{item.label}</div><div className="mt-1 text-xs font-semibold text-foreground">{item.value}</div></div>)}
         </div>
       </div>
       <div className="absolute -bottom-5 -left-5 hidden items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-2xl sm:flex"><span className="grid size-9 place-items-center rounded-xl bg-emerald-300/10 text-emerald-700 dark:text-emerald-300"><ArrowDownRight className="size-5"/></span><span><span className="block text-[11px] text-muted-foreground">Live account</span><span className="block text-sm font-semibold text-foreground">Funded USDT trading</span></span></div>
@@ -43,7 +43,7 @@ function MarketPreview() {
 }
 
 const features = [
-  { icon: ChartNoAxesCombined, title: "A clearer market view", text: "Follow supported In-house markets markets in one focused workspace, with live prices and chart tools close at hand." },
+  { icon: ChartNoAxesCombined, title: "A clearer market view", text: "Follow supported OKX crypto markets in one focused workspace, with live prices and chart tools close at hand." },
   { icon: Bot, title: "Manual and automated trading", text: "Use the strategy robot with your funded USDT account." },
   { icon: WalletCards, title: "Funding in one place", text: "Submit deposits, request withdrawals and review wallet activity from your account." },
 ];
@@ -71,7 +71,7 @@ export function LandingPage() {
             <div className="max-w-[570px]">
               <div className="inline-flex items-center gap-2 rounded-full border border-[#eab84e]/20 bg-[#eab84e]/[.07] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.18em] text-[#f1c96f]"><span className="size-1.5 rounded-full bg-emerald-400"/> Your markets. Your account.</div>
               <h1 className="mt-7 text-[clamp(2.8rem,6.4vw,5.25rem)] font-extrabold leading-[.99] tracking-[-.055em] text-foreground">Make your next move <span className="text-[#edbd58]">with clarity.</span></h1>
-              <p className="mt-6 max-w-[500px] text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">A focused trading workspace for supported In-house markets markets, with a funded USDT account and crypto funding options.</p>
+              <p className="mt-6 max-w-[500px] text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">A focused trading workspace for supported OKX crypto markets, with a funded USDT account and crypto funding options.</p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link to="/auth" search={{ mode: "up" }} className="inline-flex h-12 items-center gap-2 rounded-lg bg-[#eab84e] px-5 text-sm font-bold text-[#101a2a] transition hover:bg-[#f1c96f]">Create your account <ArrowRight className="size-4"/></Link>
                 <Link to="/auth" search={{ mode: "in" }} className="inline-flex h-12 items-center rounded-lg border border-border px-5 text-sm font-semibold text-foreground transition hover:bg-muted">Client sign in</Link>
@@ -85,7 +85,7 @@ export function LandingPage() {
           </div>
           <div className="border-y border-border bg-muted/40">
             <div className="mx-auto grid max-w-[1240px] grid-cols-2 gap-4 px-5 py-5 text-center sm:grid-cols-4 sm:px-8">
-              {["Supported crypto markets", "In-house prices", "Funded USDT wallet", "Crypto and M-Pesa funding"].map((x) => <div key={x} className="text-xs font-semibold tracking-wide text-slate-300 sm:text-sm">{x}</div>)}
+              {["Supported crypto markets", "OKX live prices", "Funded USDT wallet", "Crypto and M-Pesa funding"].map((x) => <div key={x} className="text-xs font-semibold tracking-wide text-slate-300 sm:text-sm">{x}</div>)}
             </div>
           </div>
         </section>
@@ -99,7 +99,7 @@ export function LandingPage() {
 
         <section id="about" className="bg-muted py-16 sm:py-20">
           <div className="mx-auto flex max-w-[1240px] flex-col items-start justify-between gap-8 px-5 sm:px-8 md:flex-row md:items-center">
-            <div className="max-w-2xl"><p className="text-xs font-bold uppercase tracking-[.2em] text-[#edbd58]">Start in your own time</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Trade with a funded USDT account.</h2><p className="mt-4 text-sm leading-6 text-muted-foreground">Create an account to access live USDT trading and account funding tools. Prices come from the in-house market engine and settle the platform timed contracts.</p></div>
+            <div className="max-w-2xl"><p className="text-xs font-bold uppercase tracking-[.2em] text-[#edbd58]">Start in your own time</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Trade with a funded USDT account.</h2><p className="mt-4 text-sm leading-6 text-muted-foreground">Create an account to access live USDT trading and account funding tools. Timed contracts use OKX crypto market prices.</p></div>
             <Link to="/auth" search={{ mode: "up" }} className="inline-flex h-12 shrink-0 items-center gap-2 rounded-lg bg-[#eab84e] px-5 text-sm font-bold text-[#101a2a] transition hover:bg-[#f1c96f]">Get started <ArrowUpRight className="size-4"/></Link>
           </div>
         </section>

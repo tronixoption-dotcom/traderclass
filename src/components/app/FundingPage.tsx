@@ -24,6 +24,7 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
   const [reference, setReference] = useState('');
   const [busy, setBusy] = useState(false);
   const [choosingMethod, setChoosingMethod] = useState(false);
+  const usdtBalance = Number(data?.wallets.find((wallet) => wallet.asset === 'USDT')?.balance ?? 0);
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -31,6 +32,16 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
     setData(funding); setMpesa(mpesaWallet);
   }, [user]);
   useEffect(() => { void refresh().catch(() => toast.error('Could not load wallet details')); }, [refresh]);
+  useEffect(() => {
+    if (mode !== 'withdraw' || !data || !mpesa || usdtBalance <= 0) return;
+    const current = data.methods.find((method) => method.id === methodId);
+    if (current?.asset === 'USDT' || (methodId !== 'mpesa' && current)) return;
+    const usdtMethod = data.methods.find((method) => method.asset === 'USDT' && method.withdrawals_enabled);
+    if (usdtMethod) {
+      setMethodId(usdtMethod.id);
+      setAmount(String(Math.min(50, usdtBalance)));
+    }
+  }, [mode, data, mpesa, methodId, usdtBalance]);
   useEffect(() => {
     const pending = data?.transactions.some((tx) => tx.status === 'under_review' || tx.status === 'processing') || mpesa?.transactions.some((tx) => tx.status === 'pending' || tx.status === 'processing');
     if (!pending) return;
@@ -124,7 +135,7 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
   return <div className="pb-6"><PageHeader title={mode === 'deposit' ? 'Deposit' : 'Withdraw'} compact/><section className="mx-4 mt-4 space-y-5 rounded-2xl border border-border bg-card p-4 sm:p-6">
     <div><p className="text-sm text-muted-foreground">Account</p><div className="mt-2 flex min-h-[68px] items-center gap-3 rounded-[13px] border border-input bg-background px-4"><span className="grid size-10 place-items-center rounded-full bg-primary/10 text-lg">{currency==='KES'?'🇰🇪':currency==='USD'?'🇺🇸':'₮'}</span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{currency} Account</span><span className="mt-1 block text-xs text-muted-foreground">Available {money(walletBalance(currency),currency)}</span></span></div></div>
     <div><h2 className="text-lg font-bold">{mode === 'deposit' ? 'Deposit amount' : 'Withdrawal amount'}</h2><p className="mt-1 text-sm text-muted-foreground">{accountFundingEnabled ? 'Choose an amount and payment method.' : `Your account’s ${mode} option has been disabled by an administrator.`}</p></div>
-    {mode === 'withdraw' && <div className="rounded-xl bg-muted/50 p-3 text-sm"><span className="text-muted-foreground">Available balance</span><span className="float-right font-bold">{money(walletBalance(currency), currency)}</span></div>}
+    {mode === 'withdraw' && <div className="rounded-xl bg-muted/50 p-3 text-sm"><span className="text-muted-foreground">Available {currency} balance</span><span className="float-right font-bold">{money(walletBalance(currency), currency)}</span><span className="mt-2 block text-xs text-muted-foreground">USDT trading balance: <b className="text-foreground">{money(usdtBalance, 'USDT')}</b>{mpesa.balanceKes > 0 && <> · M-Pesa balance: <b className="text-foreground">{money(mpesa.balanceKes, 'KES')}</b></>}</span></div>}
     {selected && mode === 'deposit' && <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4"><p className="text-sm font-semibold">Send {selected.asset} using {selected.name}{selected.network ? ` · ${selected.network}` : ''}</p><p className="text-xs leading-5 text-muted-foreground">{selected.instructions || 'Send only the selected asset on the network shown.'}</p><div className="break-all rounded-lg border border-border bg-background p-3 font-mono text-sm">{selected.deposit_address}</div><Button variant="outline" size="sm" onClick={() => { void navigator.clipboard.writeText(selected.deposit_address); toast.success('Wallet address copied'); }}><Copy className="mr-2 size-4"/>Copy address</Button><p className="text-xs text-muted-foreground">After sending, enter the transaction hash below. Admin review is required before funds are credited.</p></div>}
     {methodId === 'mpesa' && <div className="rounded-xl bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">KES deposits and withdrawals use M-Pesa. The payment prompt or payout is confirmed through Safaricom.</div>}
     <label className="block text-sm font-semibold">Amount ({currency})<span className="mt-2 flex h-14 items-center rounded-xl border-2 border-primary bg-background px-4"><span className="mr-2 font-bold text-muted-foreground">{currency === 'KES' ? 'KES' : currency}</span><Input aria-label={`Amount in ${currency}`} className="h-full border-0 px-0 text-lg font-bold shadow-none focus-visible:ring-0" type="number" min={current?.min_amount ?? 1} max={Math.min(current?.max_amount ?? 150000, mode === 'withdraw' ? walletBalance(currency) : 1_000_000)} step={currency === 'KES' ? 1 : 'any'} value={amount} onChange={(event) => setAmount(event.target.value)}/></span></label>
@@ -134,7 +145,7 @@ export function FundingPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
     {methodId === 'mpesa' ? <label className="block text-sm font-semibold">{mode === 'deposit' ? 'M-Pesa phone number' : 'M-Pesa phone number'}<Input className="mt-2 h-12" inputMode="tel" autoComplete="tel" placeholder="07XXXXXXXX" value={contact} onChange={(event)=>setContact(event.target.value)}/></label> : mode === 'deposit' ? <label className="block text-sm font-semibold">Transaction hash / payment reference<Input className="mt-2 h-12 font-mono" placeholder="Paste transaction ID" value={reference} onChange={(event)=>setReference(event.target.value)}/></label> : <label className="block text-sm font-semibold">Your {currency} wallet address<Input className="mt-2 h-12 font-mono" placeholder="Enter your receiving wallet" value={contact} onChange={(event)=>setContact(event.target.value)}/></label>}
     <Button className="h-14 w-full rounded-full text-base font-bold" disabled={busy||!configured||!amount||!accountFundingEnabled} onClick={()=>void submit()}>{busy?'Please wait…':mode==='deposit'?'Deposit':'Withdraw'}<ArrowRight className="ml-2 size-5"/></Button>
     <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground"><Clock3 className="size-3.5"/>{mode==='deposit'&&methodId!=='mpesa'?'Crypto deposits are credited after an admin confirms the transaction on-chain.':mode==='withdraw'&&methodId!=='mpesa'?'The selected amount is reserved while an admin processes the payout.':'Your balance updates when the M-Pesa transaction is confirmed.'}</p>
-    <p className="text-center text-[11px] leading-5 text-muted-foreground">Approved deposits add funds to your USDT wallet. Live contracts use your available wallet balance and settle against prices generated by the in-house market engine.</p>
+    <p className="text-center text-[11px] leading-5 text-muted-foreground">Approved USDT deposits and live trading returns are held in your USDT wallet. Select a USDT withdrawal method to withdraw those funds.</p>
   </section></div>;
 }
 

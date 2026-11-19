@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Users, ArrowDownToLine, ArrowUpFromLine, ChartNoAxesCombined, UsersRound, Headset, Settings2, ShieldCheck, RefreshCw, LogOut, Search, MailPlus, Trash2, Building2, Wallet, History, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Users, ArrowDownToLine, ArrowUpFromLine, ChartNoAxesCombined, UsersRound, Headset, Settings2, ShieldCheck, RefreshCw, LogOut, Search, MailPlus, Trash2, Building2, Wallet, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,7 @@ import { FundingAdmin } from './FundingAdmin';
 import { AdminSettingsPanel } from './AdminSettingsPanel';
 import { RealTradingAdmin } from './RealTradingAdmin';
 import { useStore } from '@/lib/store';
-const sections=[{label:'Clients',icon:Users},{label:'Accounts',icon:Building2},{label:'Treasury',icon:Wallet},{label:'Deposits',icon:ArrowDownToLine},{label:'Withdrawals',icon:ArrowUpFromLine},{label:'Payment methods',icon:Wallet},{label:'Trades',icon:ChartNoAxesCombined},{label:'Teams',icon:UsersRound},{label:'Support',icon:Headset},{label:'Settings',icon:Settings2},{label:'Admin access',icon:ShieldCheck},{label:'In-house history',icon:History}];
+const sections=[{label:'Clients',icon:Users},{label:'Accounts',icon:Building2},{label:'Treasury',icon:Wallet},{label:'Deposits',icon:ArrowDownToLine},{label:'Withdrawals',icon:ArrowUpFromLine},{label:'Payment methods',icon:Wallet},{label:'Trades',icon:ChartNoAxesCombined},{label:'Teams',icon:UsersRound},{label:'Support',icon:Headset},{label:'Settings',icon:Settings2},{label:'Admin access',icon:ShieldCheck}];
 const money=(n:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
 const date=(value:string|number)=>new Date(value).toLocaleString();
 export function AdminPanel(){
@@ -40,7 +40,6 @@ export function AdminPanel(){
  {section==='Payment methods'&&<FundingAdmin view="methods"/>}
  {section==='Accounts'&&<AdminOverview wallets={d.liveWallets??[]} trades={d.liveTrades??[]}/>}
  {section==='Treasury'&&<div className="space-y-6"><RealTradingAdmin/><FundingAdmin view="all"/></div>}
- {section==='In-house history'&&<Records headers={['Action','Recorded']} rows={d.audit.map(a=>[a.action,date(a.created_at)])} empty="No admin activity recorded."/>}
  {section==='Admin access'&&<section className="space-y-4"><h2 className="font-bold">Staff permissions</h2><Records headers={['Staff member','Permission']} rows={d.team.map(m=>[profiles.get(m.user_id)?.username??m.user_id,m.role])} empty="No active staff."/><Button onClick={()=>setSection('Teams')}><UsersRound/>Manage team</Button></section>}
  {section==='Deposits'&&<FundingAdmin view="deposits"/>}
  {section==='Withdrawals'&&<FundingAdmin view="withdrawals"/>}

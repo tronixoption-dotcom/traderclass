@@ -56,7 +56,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
   const [full, setFull] = useState(false);
   const [quoteStatus, setQuoteStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [quoteError, setQuoteError] = useState('');
-  const [marketSource, setMarketSource] = useState<'okx' | 'inhouse'>(() => typeof window !== 'undefined' && window.localStorage.getItem('real-market-source') === 'inhouse' ? 'inhouse' : 'okx');
+  const marketSource = 'okx' as const;
   const key = `${symbol}:${tf}`;
   const list = drawings[key] ?? [];
   const setDrawings = useCallback((fn: (d: Drawing[]) => Drawing[]) => setDrawingsMap((m) => ({ ...m, [key]: fn(m[key] ?? []) })), [key]);
@@ -89,8 +89,6 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
     return () => { active = false; clearInterval(timer); };
   }, [accountMode, symbol, user?.id, marketSource, loadMarketQuote]);
 
-  useEffect(() => { window.localStorage.setItem('real-market-source', marketSource); }, [marketSource]);
-
   const snapshot = () => {
     if (!api) return;
     api.chart.takeScreenshot().toBlob((b) => {
@@ -114,11 +112,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
       <div className="flex h-[45px] shrink-0 items-center justify-between px-[8.5px] md:h-[60px] md:px-[20px]">
         <div className="flex min-w-0 items-center gap-3">{!desktop && <div className="scale-75"><AdminEntry /></div>}<InstrumentPicker symbol={symbol} onChange={setSymbol} liveOnly={accountMode === 'real' && marketSource === 'okx'} /></div>
         <div className="flex items-center gap-2">
-          {accountMode === 'real' && <div className="flex rounded-full border border-border p-0.5" role="group" aria-label="Live market source">
-            <button type="button" aria-pressed={marketSource === 'okx'} onClick={() => setMarketSource('okx')} className={`rounded-full px-2 py-1 text-[10px] font-bold ${marketSource === 'okx' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>OKX</button>
-            <button type="button" aria-pressed={marketSource === 'inhouse'} onClick={() => setMarketSource('inhouse')} className={`rounded-full px-2 py-1 text-[10px] font-bold ${marketSource === 'inhouse' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>IN-HOUSE</button>
-          </div>}
-          <span title={quoteStatus === 'error' ? quoteError : undefined} role={accountMode === 'real' && quoteStatus === 'error' ? 'status' : undefined} className={`rounded-full px-2 py-1 text-[10px] font-bold ${accountMode === 'demo' || quoteStatus === 'connected' ? 'bg-success-soft text-success' : quoteStatus === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}>{accountMode === 'demo' ? 'DEMO MARKET' : quoteStatus === 'connected' ? (marketSource === 'okx' ? 'OKX LIVE' : 'IN-HOUSE LIVE') : quoteStatus === 'error' ? 'MARKET UNAVAILABLE' : 'CONNECTING'}</span>
+          <span title={quoteStatus === 'error' ? quoteError : undefined} role={accountMode === 'real' && quoteStatus === 'error' ? 'status' : undefined} className={`rounded-full px-2 py-1 text-[10px] font-bold ${accountMode === 'demo' || quoteStatus === 'connected' ? 'bg-success-soft text-success' : quoteStatus === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}>{accountMode === 'demo' ? 'DEMO MARKET' : quoteStatus === 'connected' ? 'OKX LIVE' : quoteStatus === 'error' ? 'MARKET UNAVAILABLE' : 'CONNECTING'}</span>
         </div>
         <AccountPicker />
       </div>
@@ -350,7 +344,7 @@ function ActiveChip() {
   );
 }
 
-function ChartLegend({ symbol, marketSource }: { symbol: string; marketSource: 'okx' | 'inhouse' }) {
+function ChartLegend({ symbol, marketSource }: { symbol: string; marketSource: 'okx' }) {
   useTick();
   const q = getQuote(symbol);
   const s = getSymbol(symbol);
@@ -429,7 +423,7 @@ function Stepper({ label, value, onMinus, onPlus, children }: { label: string; v
 }
 
 /** Shared duration/stake state and order placement for both trade panels. */
-function useTicket(symbol: string, marketSource: 'okx' | 'inhouse') {
+function useTicket(symbol: string, marketSource: 'okx') {
   const { submitRealTrade, placeTrade, accountMode, realBalance, realSettings, siteSettings, state } = useStore();
   const real = accountMode === 'real';
   const [duration, setDuration] = useState(5);
@@ -509,7 +503,7 @@ function StakeInput({ t, className }: { t: ReturnType<typeof useTicket>; classNa
   );
 }
 
-function TradePanel({ symbol, marketSource }: { symbol: string; marketSource: 'okx' | 'inhouse' }) {
+function TradePanel({ symbol, marketSource }: { symbol: string; marketSource: 'okx' }) {
   useTick();
   const t = useTicket(symbol, marketSource);
   const q = getQuote(symbol);
@@ -611,7 +605,7 @@ function BigTradeButton({ variant, price, onClick, disabled = false }: { variant
   );
 }
 
-function ManualTrade({ symbol, marketSource }: { symbol: string; marketSource: 'okx' | 'inhouse' }) {
+function ManualTrade({ symbol, marketSource }: { symbol: string; marketSource: 'okx' }) {
   useTick();
   const t = useTicket(symbol, marketSource);
   const q = getQuote(symbol);
@@ -632,7 +626,7 @@ function ManualTrade({ symbol, marketSource }: { symbol: string; marketSource: '
         <BigTradeButton variant="buy" price={t.real && !hasFreshMarketQuote(symbol) ? "?" : q.ask.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("buy")} />
       </div>
       {t.disabledReason && <TradeGateNotice message={t.disabledReason} fundingRequired={t.insufficientBalance} />}
-      <p className="mt-[14px] px-[4px] text-[11px] leading-[16px] text-muted-foreground">Live contracts settle against the selected {marketSource === 'okx' ? 'OKX crypto' : 'in-house'} market price. These are platform contracts, not exchange orders.</p>
+      <p className="mt-[14px] px-[4px] text-[11px] leading-[16px] text-muted-foreground">Live contracts settle against OKX crypto market prices. These are platform contracts, not exchange orders.</p>
     </aside>
   );
 }

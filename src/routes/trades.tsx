@@ -82,11 +82,11 @@ function ActiveRow({ t }: { t: Trade }) {
         <div className="flex-1">
           <div className="flex items-center gap-[6px] text-[13.5px] font-bold">
             {t.symbol} <DirTag d={t.direction} />
-            <span className="text-[10px] font-medium text-muted-foreground">{t.real ? 'Live · in-house prices' : 'Demo'}</span>
+            <span className="text-[10px] font-medium text-muted-foreground">{t.real ? 'Live · OKX prices' : 'Demo'}</span>
             {t.byRobot && <span className="text-[10.5px] font-normal text-muted-foreground">Robot</span>}
           </div>
           <div className="tabular text-[11.5px] text-muted-foreground">
-            Entry {fmtPrice(t.symbol, t.entry)} · Now {price === undefined ? 'In-house price unavailable' : fmtPrice(t.symbol, price)}
+            Entry {fmtPrice(t.symbol, t.entry)} · Now {price === undefined ? 'OKX price unavailable' : fmtPrice(t.symbol, price)}
           </div>
         </div>
         <div className="text-right">
@@ -111,7 +111,7 @@ function HistoryRow({ t }: { t: Trade }) {
       <div className="flex-1">
         <div className="flex items-center gap-[6px] text-[13.5px] font-bold">
           {t.symbol} <DirTag d={t.direction} />
-          <span className="text-[10px] font-medium text-muted-foreground">{t.real ? 'Live · in-house prices' : 'Demo'}</span>
+          <span className="text-[10px] font-medium text-muted-foreground">{t.real ? 'Live · OKX prices' : 'Demo'}</span>
         </div>
         <div className="tabular text-[11.5px] text-muted-foreground">
           {fmtPrice(t.symbol, t.entry)} → {fmtPrice(t.symbol, t.close ?? t.entry)} · {t.account} {t.stake} · {formatDuration(t.duration)}

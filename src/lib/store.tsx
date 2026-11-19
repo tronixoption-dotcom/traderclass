@@ -95,7 +95,7 @@ type Ctx = {
   realSettings: { enabled: boolean; minStake: number; maxStake: number; reserveMaxStake: number };
   placeTrade: (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean }) => string | null;
   setAccountMode: (mode: 'demo' | 'real') => void;
-  submitRealTrade: (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean; marketSource?: 'okx' | 'inhouse' }) => Promise<string | null>;
+  submitRealTrade: (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean; marketSource?: 'okx' }) => Promise<string | null>;
   setTheme: (t: "light" | "dark") => void;
   setName: (n: string) => void;
   setRobot: (r: Partial<RobotConfig>) => void;
@@ -175,7 +175,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setState(next);
   }, []);
 
-  const submitRealTrade = useCallback(async (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean; marketSource?: 'okx' | 'inhouse' }) => {
+  const submitRealTrade = useCallback(async (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean; marketSource?: 'okx' }) => {
     if (!user) return 'Sign in to use a live account';
     try {
       const result = await openReal({ data: { ...trade, requestId: crypto.randomUUID() } });
