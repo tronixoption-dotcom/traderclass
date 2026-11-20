@@ -10,6 +10,7 @@ import { DURATIONS, STAKE_STEPS, backtestWinRate, formatDuration, formatMoney, r
 import { getInhouseMarketHistory } from '@/lib/real-trading.functions';
 import { buildPracticeHistory } from '@/lib/feed';
 import { actionAllowed } from "@/lib/admin-rules";
+import { SYMBOLS } from "@/lib/symbols";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/robot")({
@@ -96,9 +97,10 @@ function RobotPage() {
     if (phase === "searching") return;
     setPhase("searching");
     try {
-      const rows = live ? await loadMarketHistory({ data: { symbol: r.symbol, limit: 120 } }) : buildPracticeHistory(r.symbol, 1, 120);
+      const marketSource = SYMBOLS.find((item) => item.id === r.symbol)?.category === 'Crypto' ? 'okx' : 'inhouse';
+      const rows = live ? await loadMarketHistory({ data: { symbol: r.symbol, limit: 120, source: marketSource } }) : buildPracticeHistory(r.symbol, 1, 120);
       const closes = rows.map((row) => 'price' in row ? row.price : row.close).filter((price) => Number.isFinite(price) && price > 0);
-      if (closes.length < 10) throw new Error('Not enough OKX price history to compare strategies');
+      if (closes.length < 10) throw new Error('Not enough market price history to compare strategies');
       const trend = backtestWinRate(closes, "trend");
       const reverse = backtestWinRate(closes, "reverse");
       const strategy = trend >= reverse ? "trend" : "reverse";
@@ -166,7 +168,7 @@ function RobotPage() {
                 {phase === "idle" ? "Tap to search for a signal" : phase === "searching" ? "Searching for a signal.." : "Search for a signal"}
               </span>
               <span className="block text-[12px] leading-[17px] text-primary-foreground/75">
-                Recent price history: <b className="font-bold text-primary-foreground">OKX crypto market</b>
+                Recent price history: <b className="font-bold text-primary-foreground">{SYMBOLS.find((item) => item.id === r.symbol)?.category === 'Crypto' ? 'OKX crypto market' : 'Platform market prices'}</b>
               </span>
             </span>
           </button>
@@ -203,7 +205,7 @@ function RobotPage() {
           </div>
         </div>
 
-        {!ready && <p className="mt-3 rounded-lg bg-muted p-3 text-xs leading-5 text-muted-foreground">{live ? 'To start the live Robot, sign in, wait for a fresh OKX quote, and meet the configured stake settings with enough USDT.' : 'Increase your demo balance or lower the robot stake to start.'}</p>}
+        {!ready && <p className="mt-3 rounded-lg bg-muted p-3 text-xs leading-5 text-muted-foreground">{live ? 'To start the live Robot, sign in, wait for a fresh market quote, and meet the configured stake settings with enough USDT.' : 'Increase your demo balance or lower the robot stake to start.'}</p>}
         {!robotEnabled && <p className="mt-3 rounded-lg bg-muted p-3 text-xs leading-5 text-muted-foreground">Automated trading is currently paused by the administrator.</p>}
         <div className="mt-[17px] rounded-[12px] border border-input px-[15px] py-[4px]">
           {[
@@ -226,7 +228,7 @@ function RobotPage() {
           </div>
         </div>
         <p className="mt-[10px] text-center text-[10.5px] leading-[15px] text-muted-foreground">
-          {live ? 'Live account trades use your USDT balance and settle against OKX crypto market prices.' : 'Demo trades use a simulated price feed and virtual balance.'} Historical results are not a prediction.
+          {live ? 'Live account trades use your USDT balance. Crypto uses OKX prices; other markets use platform generated prices.' : 'Demo trades use a simulated price feed and virtual balance.'} Historical results are not a prediction.
         </p>
       </div>
 

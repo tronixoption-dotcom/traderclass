@@ -18,7 +18,7 @@ function AboutPage() {
           Tradeclass provides a funded USDT trading account. Deposits and withdrawals are requested through the payment methods available in your account.
         </p>
         <InfoNote>
-          Timed USDT contracts settle against OKX crypto market prices; the platform does not place exchange orders. Deposits are credited after staff review, while withdrawal funds are reserved until the request is paid or rejected. Always check the asset, network and receiving address before sending crypto.
+          Timed USDT contracts use OKX prices for crypto and platform generated prices for other listed markets; the platform does not place exchange orders. Deposits are credited after staff review, while withdrawal funds are reserved until the request is paid or rejected. Always check the asset, network and receiving address before sending crypto.
         </InfoNote>
       </div>
     </div>

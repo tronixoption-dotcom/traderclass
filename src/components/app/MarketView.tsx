@@ -56,7 +56,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
   const [full, setFull] = useState(false);
   const [quoteStatus, setQuoteStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [quoteError, setQuoteError] = useState('');
-  const marketSource = 'okx' as const;
+  const marketSource: 'okx' | 'inhouse' = getSymbol(symbol).category === 'Crypto' ? 'okx' : 'inhouse';
   const key = `${symbol}:${tf}`;
   const list = drawings[key] ?? [];
   const setDrawings = useCallback((fn: (d: Drawing[]) => Drawing[]) => setDrawingsMap((m) => ({ ...m, [key]: fn(m[key] ?? []) })), [key]);
@@ -80,7 +80,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
       } catch (error) {
         if (active) {
           setQuoteStatus('error');
-          setQuoteError(error instanceof Error ? error.message : 'Could not load the OKX market price');
+          setQuoteError(error instanceof Error ? error.message : 'Could not load the market price');
         }
       }
     };
@@ -88,10 +88,6 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
     const timer = setInterval(() => { void refresh(); }, 2000);
     return () => { active = false; clearInterval(timer); };
   }, [accountMode, symbol, user?.id, marketSource, loadMarketQuote]);
-
-  useEffect(() => {
-    if (accountMode === 'real' && getSymbol(symbol).category !== 'Crypto') setSymbol('BTCUSD');
-  }, [accountMode, symbol]);
 
   const snapshot = () => {
     if (!api) return;
@@ -114,9 +110,9 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
     <div className="flex h-full min-h-0 min-w-0 flex-1">
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex h-[45px] shrink-0 items-center justify-between px-[8.5px] md:h-[60px] md:px-[20px]">
-        <div className="flex min-w-0 items-center gap-3">{!desktop && <div className="scale-75"><AdminEntry /></div>}<InstrumentPicker symbol={symbol} onChange={setSymbol} liveOnly={accountMode === 'real' && marketSource === 'okx'} /></div>
+        <div className="flex min-w-0 items-center gap-3">{!desktop && <div className="scale-75"><AdminEntry /></div>}<InstrumentPicker symbol={symbol} onChange={setSymbol} liveOnly={accountMode === 'real'} /></div>
         <div className="flex items-center gap-2">
-          <span title={quoteStatus === 'error' ? quoteError : undefined} role={accountMode === 'real' && quoteStatus === 'error' ? 'status' : undefined} className={`rounded-full px-2 py-1 text-[10px] font-bold ${accountMode === 'demo' || quoteStatus === 'connected' ? 'bg-success-soft text-success' : quoteStatus === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}>{accountMode === 'demo' ? 'DEMO MARKET' : quoteStatus === 'connected' ? 'OKX LIVE' : quoteStatus === 'error' ? 'MARKET UNAVAILABLE' : 'CONNECTING'}</span>
+          <span title={quoteStatus === 'error' ? quoteError : undefined} role={accountMode === 'real' && quoteStatus === 'error' ? 'status' : undefined} className={`rounded-full px-2 py-1 text-[10px] font-bold ${accountMode === 'demo' || quoteStatus === 'connected' ? 'bg-success-soft text-success' : quoteStatus === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}>{accountMode === 'demo' ? 'DEMO MARKET' : quoteStatus === 'connected' ? (marketSource === 'okx' ? 'OKX LIVE' : 'LIVE MARKET') : quoteStatus === 'error' ? 'MARKET UNAVAILABLE' : 'CONNECTING'}</span>
         </div>
         <AccountPicker />
       </div>
@@ -178,7 +174,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
             </DropdownMenuContent>
           </DropdownMenu>
           <Sep />
-          <InstrumentPicker symbol={symbol} onChange={setSymbol} compare liveOnly={accountMode === 'real' && marketSource === 'okx'} />
+          <InstrumentPicker symbol={symbol} onChange={setSymbol} compare liveOnly={accountMode === 'real'} />
           <Sep />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -348,7 +344,7 @@ function ActiveChip() {
   );
 }
 
-function ChartLegend({ symbol, marketSource }: { symbol: string; marketSource: 'okx' }) {
+function ChartLegend({ symbol, marketSource }: { symbol: string; marketSource: 'okx' | 'inhouse' }) {
   useTick();
   const q = getQuote(symbol);
   const s = getSymbol(symbol);
@@ -381,7 +377,7 @@ function AccountPicker() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="flex h-[41.5px] items-center rounded-full border border-border pl-[9.5px] pr-[14px] text-left hover:bg-muted md:h-[50px] md:pl-[14px] md:pr-[18px]">
-          <AccountIcon account={currency} className="md:size-[34px]" />
+          <AccountIcon account={real ? 'USD' : currency} className="md:size-[34px]" />
           <span className="ml-[11px] mr-[10px] block md:ml-[14px] md:mr-[14px]">
             <span className="block text-[10px] leading-[13px] text-muted-foreground md:text-[12px] md:leading-[16px]">{real ? 'Real Account' : 'Demo Account'}</span>
             <span className="tabular block text-[14.5px] font-bold leading-[18px] md:text-[15.5px] md:leading-[20px]">{formatMoney(balance, currency)}</span>
@@ -396,7 +392,7 @@ function AccountPicker() {
           {!real && <Check className="size-4 text-primary" />}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setAccountMode('real')} className={`gap-2.5 py-2 ${real ? 'bg-primary-soft' : ''}`}>
-          <AccountIcon account="USDT" />
+          <AccountIcon account="USD" />
           <div className="flex-1"><div className="text-[13px] font-medium">Real Account</div><div className="tabular text-[11px] text-muted-foreground">{formatMoney(realBalance, 'USDT')}</div></div>
           {real && <Check className="size-4 text-primary" />}
         </DropdownMenuItem>
@@ -427,7 +423,7 @@ function Stepper({ label, value, onMinus, onPlus, children }: { label: string; v
 }
 
 /** Shared duration/stake state and order placement for both trade panels. */
-function useTicket(symbol: string, marketSource: 'okx') {
+function useTicket(symbol: string, marketSource: 'okx' | 'inhouse') {
   const { submitRealTrade, placeTrade, accountMode, realBalance, realSettings, siteSettings, state } = useStore();
   const real = accountMode === 'real';
   const [duration, setDuration] = useState(5);
@@ -507,7 +503,7 @@ function StakeInput({ t, className }: { t: ReturnType<typeof useTicket>; classNa
   );
 }
 
-function TradePanel({ symbol, marketSource }: { symbol: string; marketSource: 'okx' }) {
+function TradePanel({ symbol, marketSource }: { symbol: string; marketSource: 'okx' | 'inhouse' }) {
   useTick();
   const t = useTicket(symbol, marketSource);
   const q = getQuote(symbol);
@@ -609,7 +605,7 @@ function BigTradeButton({ variant, price, onClick, disabled = false }: { variant
   );
 }
 
-function ManualTrade({ symbol, marketSource }: { symbol: string; marketSource: 'okx' }) {
+function ManualTrade({ symbol, marketSource }: { symbol: string; marketSource: 'okx' | 'inhouse' }) {
   useTick();
   const t = useTicket(symbol, marketSource);
   const q = getQuote(symbol);
@@ -630,7 +626,7 @@ function ManualTrade({ symbol, marketSource }: { symbol: string; marketSource: '
         <BigTradeButton variant="buy" price={t.real && !hasFreshMarketQuote(symbol) ? "?" : q.ask.toFixed(d)} disabled={!t.canTrade} onClick={() => void t.trade("buy")} />
       </div>
       {t.disabledReason && <TradeGateNotice message={t.disabledReason} fundingRequired={t.insufficientBalance} />}
-      <p className="mt-[14px] px-[4px] text-[11px] leading-[16px] text-muted-foreground">Live contracts settle against OKX crypto market prices. These are platform contracts, not exchange orders.</p>
+      <p className="mt-[14px] px-[4px] text-[11px] leading-[16px] text-muted-foreground">Crypto contracts use OKX prices. Other markets use platform generated prices. These are platform contracts, not exchange orders.</p>
     </aside>
   );
 }

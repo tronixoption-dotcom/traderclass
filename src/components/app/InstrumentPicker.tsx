@@ -37,19 +37,17 @@ export function InstrumentPicker({ symbol, onChange, disabled = false, robot = f
           <div className="flex flex-wrap gap-1 border-b border-border p-2" role="group" aria-label="Instrument categories">
             {["All", ...SYMBOL_CATEGORIES].map((label) => <Button key={label} size="sm" variant={category === label ? "secondary" : "ghost"} className="h-7 px-2 text-xs" aria-pressed={category === label} onClick={() => setCategory(label)}>{label}</Button>)}
           </div>
-          {liveOnly && <p className="border-b border-border bg-muted/40 px-3 py-2 text-[11px] leading-4 text-muted-foreground">Forex, metals, commodities, indices and stocks are available in Demo. Real Account uses OKX crypto prices.</p>}
           <CommandList className="max-h-[min(360px,45vh)]">
             <CommandEmpty>No instruments found.</CommandEmpty>
             {SYMBOL_CATEGORIES.filter((label) => category === "All" || category === label).map((label) => {
-              const demoOnly = liveOnly && label !== 'Crypto';
               const matches = instruments.filter((s) => s.category === label && `${s.id} ${s.name}`.toLowerCase().includes(query.trim().toLowerCase()));
               return matches.length ? <CommandGroup key={label} heading={`${label} · ${matches.length}`}>
                 {matches.map((s) => {
                   const quote = getQuote(s.id);
-                  return <CommandItem key={s.id} value={s.id} disabled={demoOnly} onSelect={() => { if (demoOnly) return; onChange(s.id); setOpen(false); setQuery(""); }} className="gap-2.5 py-2">
+                  return <CommandItem key={s.id} value={s.id} onSelect={() => { onChange(s.id); setOpen(false); setQuery(""); }} className="gap-2.5 py-2">
                     <SymbolIcon symbol={s.id} className="size-7 text-[10px]" />
                     <div className="min-w-0 flex-1"><div className="text-[13px] font-bold">{s.id}</div><div className="text-[11px] leading-4 text-muted-foreground">{s.name}</div></div>
-                    <div className="shrink-0 text-right"><div className="tabular text-xs">{demoOnly ? '—' : liveOnly && !hasFreshMarketQuote(s.id) ? '—' : fmtPrice(s.id, quote.mid)}</div><div className={cn("tabular text-[11px]", quote.change >= 0 ? "text-success" : "text-destructive")}>{demoOnly ? 'Demo only' : liveOnly && !hasFreshMarketQuote(s.id) ? 'Waiting for price' : `${quote.change >= 0 ? "+" : ""}${quote.changePct.toFixed(2)}%`}</div></div>
+                    <div className="shrink-0 text-right"><div className="tabular text-xs">{liveOnly && !hasFreshMarketQuote(s.id) ? '—' : fmtPrice(s.id, quote.mid)}</div><div className={cn("tabular text-[11px]", quote.change >= 0 ? "text-success" : "text-destructive")}>{liveOnly && !hasFreshMarketQuote(s.id) ? 'Waiting for price' : `${quote.change >= 0 ? "+" : ""}${quote.changePct.toFixed(2)}%`}</div></div>
                     {symbol === s.id && <Check className="size-4 shrink-0 text-primary" />}
                   </CommandItem>;
                 })}

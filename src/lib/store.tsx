@@ -97,7 +97,7 @@ type Ctx = {
   realSettings: { enabled: boolean; minStake: number; maxStake: number; reserveMaxStake: number };
   placeTrade: (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean }) => string | null;
   setAccountMode: (mode: 'demo' | 'real') => void;
-  submitRealTrade: (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean; marketSource?: 'okx' }) => Promise<string | null>;
+  submitRealTrade: (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean; marketSource?: 'okx' | 'inhouse' }) => Promise<string | null>;
   setTheme: (t: "light" | "dark") => void;
   setName: (n: string) => void;
   setProfilePhone: (phone: string) => void;
@@ -181,7 +181,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setState(next);
   }, []);
 
-  const submitRealTrade = useCallback(async (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean; marketSource?: 'okx' }) => {
+  const submitRealTrade = useCallback(async (trade: { symbol: string; direction: Direction; stake: number; duration: number; byRobot?: boolean; marketSource?: 'okx' | 'inhouse' }) => {
     if (!user) return 'Sign in to use a live account';
     try {
       const result = await openReal({ data: { ...trade, requestId: crypto.randomUUID() } });
@@ -336,7 +336,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           robotSubmitPending.current = true;
           void (async () => {
             try {
-              const err = await submitRealTradeRef.current({ symbol: r.symbol, direction: dir, stake: r.stake, duration: r.duration, byRobot: true });
+              const marketSource = SYMBOLS.find((item) => item.id === r.symbol)?.category === 'Crypto' ? 'okx' : 'inhouse';
+              const err = await submitRealTradeRef.current({ symbol: r.symbol, direction: dir, stake: r.stake, duration: r.duration, byRobot: true, marketSource });
               if (err) {
                 commit({ ...ref.current, robot: { ...ref.current.robot, running: false } });
                 toast.error(`Robot stopped: ${err}`);

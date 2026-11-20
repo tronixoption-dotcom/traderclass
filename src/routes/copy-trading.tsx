@@ -49,7 +49,7 @@ function CopyTradingPage() {
             </div>
           );
         })}
-        <InfoNote className="pt-[10px]">Selecting a preset starts the Robot with your configured stake. Demo mode uses virtual funds and a simulated feed; live mode uses your USDT balance and OKX crypto market prices. Strategies do not copy a person or predict results.</InfoNote>
+        <InfoNote className="pt-[10px]">Selecting a preset starts the Robot with your configured stake. Demo mode uses virtual funds and a simulated feed; live mode uses your USDT balance, OKX crypto prices, and platform generated prices for other markets. Strategies do not copy a person or predict results.</InfoNote>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import { getPrice, hasFreshMarketQuote } from "@/lib/feed";
 import { fmtPrice } from "@/lib/format";
 import { formatDuration, payoutFor } from "@/lib/trading";
 import { cn } from "@/lib/utils";
+import { getSymbol } from "@/lib/symbols";
 
 export const Route = createFileRoute("/trades")({
   head: () => pageHead("Trades", "Review your demo and live trade activity."),
@@ -82,11 +83,11 @@ function ActiveRow({ t }: { t: Trade }) {
         <div className="flex-1">
           <div className="flex items-center gap-[6px] text-[13.5px] font-bold">
             {t.symbol} <DirTag d={t.direction} />
-            <span className="text-[10px] font-medium text-muted-foreground">{t.real ? 'Live · OKX prices' : 'Demo'}</span>
+            <span className="text-[10px] font-medium text-muted-foreground">{t.real ? getSymbol(t.symbol).category === 'Crypto' ? 'Live · OKX prices' : 'Live · Platform prices' : 'Demo'}</span>
             {t.byRobot && <span className="text-[10.5px] font-normal text-muted-foreground">Robot</span>}
           </div>
           <div className="tabular text-[11.5px] text-muted-foreground">
-            Entry {fmtPrice(t.symbol, t.entry)} · Now {price === undefined ? 'OKX price unavailable' : fmtPrice(t.symbol, price)}
+            Entry {fmtPrice(t.symbol, t.entry)} · Now {price === undefined ? 'Market price unavailable' : fmtPrice(t.symbol, price)}
           </div>
         </div>
         <div className="text-right">
@@ -111,7 +112,7 @@ function HistoryRow({ t }: { t: Trade }) {
       <div className="flex-1">
         <div className="flex items-center gap-[6px] text-[13.5px] font-bold">
           {t.symbol} <DirTag d={t.direction} />
-          <span className="text-[10px] font-medium text-muted-foreground">{t.real ? 'Live · OKX prices' : 'Demo'}</span>
+          <span className="text-[10px] font-medium text-muted-foreground">{t.real ? getSymbol(t.symbol).category === 'Crypto' ? 'Live · OKX prices' : 'Live · Platform prices' : 'Demo'}</span>
         </div>
         <div className="tabular text-[11.5px] text-muted-foreground">
           {fmtPrice(t.symbol, t.entry)} → {fmtPrice(t.symbol, t.close ?? t.entry)} · {t.account} {t.stake} · {formatDuration(t.duration)}

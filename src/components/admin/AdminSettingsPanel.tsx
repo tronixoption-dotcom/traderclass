@@ -80,11 +80,11 @@ export function AdminSettingsPanel({ settings, setSettings, audit, busy, onSave,
     </section>
 
     <section className="space-y-3 rounded-xl border border-border bg-card p-4">
-      <div><h2 className="text-lg font-semibold">Market and site controls</h2><p className="mt-1 text-sm text-muted-foreground">Live contracts use fresh OKX prices and the configured payout rules.</p></div>
+      <div><h2 className="text-lg font-semibold">Market and site controls</h2><p className="mt-1 text-sm text-muted-foreground">Live crypto contracts use OKX prices; other markets use platform generated prices and the configured payout rules.</p></div>
       <div className="divide-y divide-border border-y border-border">{([
         { key: 'trading_enabled', label: 'Manual trading' }, { key: 'robot_enabled', label: 'Automated robot' },
         { key: 'deposits_enabled', label: 'All deposits' }, { key: 'withdrawals_enabled', label: 'All withdrawals' },
-        { key: 'real_trading_enabled', label: 'Live USDT contracts (OKX prices)' },
+        { key: 'real_trading_enabled', label: 'Live USDT contracts' },
       ] as const).map((item) => <label key={item.key} className="flex items-center justify-between py-4 text-sm font-medium">{item.label}<Switch aria-label={item.label} checked={settings[item.key]} onCheckedChange={(checked) => patchSettings({ [item.key]: checked })}/></label>)}</div>
       <label className="block space-y-2 text-sm font-medium">Site announcement<Textarea aria-label="Site announcement" maxLength={240} value={settings.announcement} onChange={(event) => patchSettings({ announcement: event.target.value })}/></label>
     </section>
