@@ -154,7 +154,7 @@ function RobotPage() {
 
         <div className="mt-[24px]">
           <SectionTitle title="Instrument and timing" sub="Strategy routing" />
-          <InstrumentPicker robot symbol={r.symbol} disabled={locked} liveOnly={live} onChange={(symbol) => {
+          <InstrumentPicker robot symbol={r.symbol} disabled={locked} onChange={(symbol) => {
             setRobot({ symbol });
             setPhase("idle");
           }} />

@@ -5,18 +5,17 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { SymbolIcon } from "@/components/app/icons";
 import { SYMBOLS, SYMBOL_CATEGORIES } from "@/lib/symbols";
-import { getQuote, hasFreshMarketQuote } from "@/lib/feed";
+import { getQuote } from "@/lib/feed";
 import { fmtPrice } from "@/lib/format";
 import { useTick } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
-export function InstrumentPicker({ symbol, onChange, disabled = false, robot = false, compare = false, liveOnly = false }: {
+export function InstrumentPicker({ symbol, onChange, disabled = false, robot = false, compare = false }: {
   symbol: string;
   onChange: (symbol: string) => void;
   disabled?: boolean;
   robot?: boolean;
   compare?: boolean;
-  liveOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState("All");
@@ -47,14 +46,14 @@ export function InstrumentPicker({ symbol, onChange, disabled = false, robot = f
                   return <CommandItem key={s.id} value={s.id} onSelect={() => { onChange(s.id); setOpen(false); setQuery(""); }} className="gap-2.5 py-2">
                     <SymbolIcon symbol={s.id} className="size-7 text-[10px]" />
                     <div className="min-w-0 flex-1"><div className="text-[13px] font-bold">{s.id}</div><div className="text-[11px] leading-4 text-muted-foreground">{s.name}</div></div>
-                    <div className="shrink-0 text-right"><div className="tabular text-xs">{liveOnly && !hasFreshMarketQuote(s.id) ? '—' : fmtPrice(s.id, quote.mid)}</div><div className={cn("tabular text-[11px]", quote.change >= 0 ? "text-success" : "text-destructive")}>{liveOnly && !hasFreshMarketQuote(s.id) ? 'Waiting for price' : `${quote.change >= 0 ? "+" : ""}${quote.changePct.toFixed(2)}%`}</div></div>
+                    <div className="shrink-0 text-right"><div className="tabular text-xs">{fmtPrice(s.id, quote.mid)}</div><div className={cn("tabular text-[11px]", quote.change >= 0 ? "text-success" : "text-destructive")}>{`${quote.change >= 0 ? "+" : ""}${quote.changePct.toFixed(2)}%`}</div></div>
                     {symbol === s.id && <Check className="size-4 shrink-0 text-primary" />}
                   </CommandItem>;
                 })}
               </CommandGroup> : null;
             })}
           </CommandList>
-          <div className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground">{instruments.length} markets · Live market prices</div>
+          <div className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground">{instruments.length} markets · Prices refresh continuously</div>
         </Command>
       </PopoverContent>
     </Popover>

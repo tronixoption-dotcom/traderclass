@@ -110,7 +110,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
     <div className="flex h-full min-h-0 min-w-0 flex-1">
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex h-[45px] shrink-0 items-center justify-between px-[8.5px] md:h-[60px] md:px-[20px]">
-        <div className="flex min-w-0 items-center gap-3">{!desktop && <div className="scale-75"><AdminEntry /></div>}<InstrumentPicker symbol={symbol} onChange={setSymbol} liveOnly={accountMode === 'real'} /></div>
+        <div className="flex min-w-0 items-center gap-3">{!desktop && <div className="scale-75"><AdminEntry /></div>}<InstrumentPicker symbol={symbol} onChange={setSymbol} /></div>
         <div className="flex items-center gap-2">
           <span title={quoteStatus === 'error' ? quoteError : undefined} role={accountMode === 'real' && quoteStatus === 'error' ? 'status' : undefined} className={`rounded-full px-2 py-1 text-[10px] font-bold ${accountMode === 'demo' || quoteStatus === 'connected' ? 'bg-success-soft text-success' : quoteStatus === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}>{accountMode === 'demo' ? 'DEMO MARKET' : quoteStatus === 'connected' ? (marketSource === 'okx' ? 'OKX LIVE' : 'LIVE MARKET') : quoteStatus === 'error' ? 'MARKET UNAVAILABLE' : 'CONNECTING'}</span>
         </div>
@@ -174,7 +174,7 @@ export function MarketView({ desktop = false, overlay }: { desktop?: boolean; ov
             </DropdownMenuContent>
           </DropdownMenu>
           <Sep />
-          <InstrumentPicker symbol={symbol} onChange={setSymbol} compare liveOnly={accountMode === 'real'} />
+          <InstrumentPicker symbol={symbol} onChange={setSymbol} compare />
           <Sep />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
